@@ -492,7 +492,7 @@ function Chat() {
             </h1>
             <Badge variant="secondary">
               <ChatCircleDotsIcon size={12} weight="bold" className="mr-1" />
-              Reliability V0.1
+              Reliability V0.2
             </Badge>
           </div>
           <div className="flex items-center gap-3">
