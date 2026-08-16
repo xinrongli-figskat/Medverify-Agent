@@ -1,0 +1,90 @@
+# Reliability Run Format
+
+真实运行命令：
+
+```bash
+node scripts/run-reliability.mjs --case REL-001 --base-url http://localhost:5173
+```
+
+结构检查命令不会连接 Agent：
+
+```bash
+npm run test:reliability
+```
+
+## 实际调用路径
+
+Runner 使用已安装的 `agents/client` 中的 `AgentClient`，连接 `ChatAgent` 的 `default` 实例。它与页面使用相同的 WebSocket Agent 路径和 chat request 消息类型，不会调用另一个模型 API。
+
+Runner 发送完整 UI message 列表，等待对应 request ID 的完成事件，然后从同一 Agent 的 `/get-messages` 端点读取持久化消息。Tool 调用和最终回答都从真实 assistant message parts 中提取。
+
+## 文件位置
+
+每次真实运行保存为：
+
+```text
+runs_raw/<timestamp>_<case-id>.json
+```
+
+dry-run 不创建 run 文件。
+
+离线重新评估旧 run：
+
+```bash
+node scripts/run-reliability.mjs --evaluate-run runs_raw/<run-file>.json
+```
+
+离线模式只读取 run 和当前 `cases.json`，不连接服务器、不调用模型或 PubMed，也不修改原始 run。发现 hard failure 时退出码为 1。
+
+## 字段
+
+- `runId`：时间戳和 Case ID 组成的唯一运行 ID。
+- `caseId`：对应 `cases.json` 中的 ID。
+- `timestamp`：UTC ISO 时间。
+- `gitCommit`：运行时 Git 提交。
+- `dirtyWorktree`：运行时工作区是否有未提交内容。
+- `baseUrl`：被测页面的根 URL。
+- `agent` / `agentName`：实际 Agent 类和实例名。
+- `userInput`：原始用户输入。
+- `toolCallCount`：assistant message 中的 Tool part 数量。
+- `toolCalls`：Tool 名称、input、output、查询审计字段和状态。
+- `finalAnswer`：assistant message 中所有文本 part 合并后的最终回答。
+- `durationMs`：连接、执行和读取结果的总时间。
+- `errors`：连接、协议、Agent 或读取错误。
+- `toolErrors`：Tool state、空 output 和 Tool 自报错误的统一列表。
+- `verdict`：`FAIL`、`PASS_WITH_NOTE` 或 `PASS`。
+- `assertionResults`：自动断言结果和仍需人工检查的行为。
+
+Transport 成功只代表请求和消息链路完成，不代表 Tool 成功。任何 Tool 不是 `output-available`、output 为空或存在 Tool error，都会导致 hard assertion 失败。
+
+Verdict 规则：
+
+- 任意 hard assertion 失败：`FAIL`。
+- hard assertions 全部通过，但人工状态是 `REVIEW_REQUIRED`：`PASS_WITH_NOTE`。
+- hard assertions 全部通过且不需要人工复核：`PASS`。
+- 人工状态是 `REVIEWED_FAIL`：`FAIL`。
+
+`manual_behavior_review` 使用独立状态：`REVIEW_REQUIRED`、`REVIEWED_PASS`、`REVIEWED_FAIL` 或 `NOT_REQUIRED`，不能伪装成自动 `passed: true`。
+
+## Case 驱动断言
+
+Runner 从 `cases.json` 读取通用机器断言配置，包括：
+
+- `expectedToolCalls`
+- `expectedToolName`
+- `expectedToolState`
+- `requireToolOutput`
+- `expectedExecutedQuery`
+- `expectedRecordPmids`
+- `forbiddenOutputPatterns`
+- `manualReviewRequired`
+
+PMID 精确查询允许 `12345678`、`12345678[UID]`、`12345678[PMID]` 等价形式，但不接受混入其他主题词的查询。
+
+## Raw run 不可修改
+
+`runs_raw/*.json` 是当时执行事实的原始记录。规则升级后不得回写旧 run；应使用 `--evaluate-run` 输出当前规则下的新判断，并保留 original verdict 供比较。
+
+## 安全边界
+
+Runner 不读取或保存 `.env`、Token 或 API Key。实际运行会调用当前页面背后的真实 Agent，因此只能在明确允许模型和 PubMed 请求时执行。本里程碑只运行 dry-run。
