@@ -69,7 +69,9 @@ if (args.dryRun) {
   console.log(`可用 case：${cases.length} 条。`);
   if (selected) {
     console.log(`已选择：${selected.id} ${selected.name}`);
-    console.log(`Agent：ChatAgent；实例：${args.agentName}`);
+    console.log(
+      `Agent：ChatAgent；实例：${args.agentName ?? "实际运行时自动生成独立实例"}`
+    );
     console.log(`Base URL：${args.baseUrl ?? "实际运行时必须提供"}`);
   }
   process.exit(0);
@@ -95,23 +97,39 @@ const normalizedBaseUrl = baseUrl.href.replace(/\/$/, "");
 const startedAt = Date.now();
 const timestamp = new Date().toISOString();
 const runId = `${timestamp.replace(/[:.]/g, "-")}_${reliabilityCase.id}`;
+const agentName =
+  args.agentName ?? createIsolatedAgentName(reliabilityCase.id, timestamp);
+const sessionIsolated = args.agentName === null;
+
 const errors = [];
 let client;
 let finalMessages = [];
+let requestId = null;
+let userMessageId = null;
+let initialMessageCount = null;
 
 try {
-  const existingMessages = await getMessages(normalizedBaseUrl, args.agentName);
+  const existingMessages = await getMessages(normalizedBaseUrl, agentName);
+  initialMessageCount = existingMessages.length;
+
+  if (sessionIsolated && initialMessageCount !== 0) {
+    throw new Error(
+      `独立 Agent 实例不应包含历史消息，实际发现 ${initialMessageCount} 条`
+    );
+  }
+
+  userMessageId = crypto.randomUUID();
   const userMessage = {
-    id: crypto.randomUUID(),
+    id: userMessageId,
     role: "user",
     parts: [{ type: "text", text: reliabilityCase.userInput }]
   };
   const messages = [...existingMessages, userMessage];
-  const requestId = crypto.randomUUID();
+  requestId = crypto.randomUUID();
 
   client = new AgentClient({
     agent: "ChatAgent",
-    name: args.agentName,
+    name: agentName,
     host: normalizedBaseUrl
   });
   await withTimeout(
@@ -121,14 +139,22 @@ try {
   );
 
   await waitForTurn(client, requestId, messages, args.timeoutMs);
-  finalMessages = await getMessages(normalizedBaseUrl, args.agentName);
+  finalMessages = await getMessages(normalizedBaseUrl, agentName);
 } catch (error) {
   errors.push(messageOf(error));
 } finally {
   client?.close(1000, "Reliability run complete");
 }
 
-const assistantMessage = findLastAssistantMessage(finalMessages);
+const assistantMessage = findAssistantMessageForUser(
+  finalMessages,
+  userMessageId
+);
+
+if (!assistantMessage && errors.length === 0) {
+  errors.push("没有找到本次用户消息之后的 assistant message");
+}
+
 const toolCalls = extractToolCalls(assistantMessage);
 const finalAnswer = extractFinalAnswer(assistantMessage);
 const evaluation = evaluateRun(reliabilityCase, {
@@ -145,7 +171,13 @@ const run = {
   dirtyWorktree: git(["status", "--porcelain"]).length > 0,
   baseUrl: normalizedBaseUrl,
   agent: "ChatAgent",
-  agentName: args.agentName,
+  agentClass: "ChatAgent",
+  agentName,
+  sessionIsolated,
+  initialMessageCount,
+  messageCount: finalMessages.length,
+  requestId,
+  userMessageId,
   userInput: reliabilityCase.userInput,
   toolCallCount: toolCalls.length,
   toolCalls,
@@ -164,11 +196,24 @@ console.log(`Run 已保存：${fileURLToPath(outputUrl)}`);
 console.log(`Verdict：${evaluation.verdict}`);
 if (evaluation.verdict === "FAIL") process.exitCode = 1;
 
+function createIsolatedAgentName(caseId, timestamp) {
+  const safeCaseId =
+    caseId
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "case";
+
+  const compactTimestamp = timestamp.replace(/\D/g, "").slice(0, 14);
+  const suffix = crypto.randomUUID().slice(0, 8);
+
+  return `reliability-${safeCaseId}-${compactTimestamp}-${suffix}`;
+}
 function parseArgs(argv) {
   const result = {
     caseId: null,
     baseUrl: null,
-    agentName: "default",
+    agentName: null,
     timeoutMs: 120000,
     dryRun: false,
     evaluateRunPath: null
@@ -275,10 +320,18 @@ async function getMessages(base, agentName) {
   return messages;
 }
 
-function findLastAssistantMessage(messages) {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
+function findAssistantMessageForUser(messages, userMessageId) {
+  if (!userMessageId) return null;
+
+  const userIndex = messages.findIndex(
+    (message) => message?.id === userMessageId
+  );
+  if (userIndex === -1) return null;
+
+  for (let index = messages.length - 1; index > userIndex; index -= 1) {
     if (messages[index]?.role === "assistant") return messages[index];
   }
+
   return null;
 }
 
@@ -514,12 +567,15 @@ function equivalentExactPmidQuery(actual, expected) {
 }
 
 function withTimeout(promise, timeoutMs, text) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(text)), timeoutMs)
-    )
-  ]);
+  let timeoutId;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(text)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 }
 
 function git(argv) {

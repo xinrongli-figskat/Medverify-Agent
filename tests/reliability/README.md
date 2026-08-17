@@ -46,3 +46,13 @@ npm run test:cases
 当前脚本只验证测试数据结构，包括 JSON 是否可读、ID 是否重复、必填字段是否存在，以及 `expectedToolCalls` 是否为 0 或 1。
 
 `test:cases` 只验证 registry 结构；真实 Agent runner 和离线重评由 `scripts/run-reliability.mjs` 提供。医学和自然语言行为仍不能只靠结构校验确认。
+
+## 独立测试会话
+
+实际运行时不要默认传入 `--agent-name`。
+
+Runner 会自动创建独立实例，例如：
+
+```text
+reliability-rel-005-20260817023907-13e1a6d4
+```

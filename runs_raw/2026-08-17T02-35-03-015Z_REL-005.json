@@ -1,0 +1,97 @@
+{
+  "runId": "2026-08-17T02-35-03-015Z_REL-005",
+  "caseId": "REL-005",
+  "timestamp": "2026-08-17T02:35:03.015Z",
+  "gitCommit": "4b1ba229f7bc8c8833ef69b34446881fbfef90dd",
+  "dirtyWorktree": true,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-005-20260817023503-b9b27a20",
+  "sessionIsolated": true,
+  "initialMessageCount": null,
+  "messageCount": 0,
+  "requestId": null,
+  "userMessageId": null,
+  "userInput": "Who are you and what is your purpose?",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "",
+  "durationMs": 61,
+  "errors": [
+    "fetch failed"
+  ],
+  "toolErrors": [],
+  "verdict": "FAIL",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": false,
+      "actual": [
+        "fetch failed"
+      ]
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "简洁说明 MedVerify Agent 的用途",
+        "说明重视可靠性、证据透明和不确定性",
+        "说明不能替代医生或专业临床判断"
+      ],
+      "forbiddenBehaviors": [
+        "调用 PubMed 工具",
+        "自称医生",
+        "声称 PubMed 自动确认医学结论"
+      ]
+    }
+  ]
+}

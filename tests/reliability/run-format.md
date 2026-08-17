@@ -88,3 +88,26 @@ PMID 精确查询允许 `12345678`、`12345678[UID]`、`12345678[PMID]` 等价�
 ## 安全边界
 
 Runner 不读取或保存 `.env`、Token 或 API Key。实际运行会调用当前页面背后的真实 Agent，因此只能在明确允许模型和 PubMed 请求时执行。本里程碑只运行 dry-run。
+
+## Session isolation
+
+Live reliability run 默认不使用生产页面的 `default` Agent 实例。
+
+Runner 会为每次测试生成唯一的 Agent name，避免不同 case 共享：
+
+- 用户消息；
+- assistant 回答；
+- Tool Call；
+- PubMed 检索结果。
+
+新增字段：
+
+- `agentClass`：实际 Agent 类；
+- `agentName`：本次独立实例名称；
+- `sessionIsolated`：是否由 Runner 自动隔离；
+- `initialMessageCount`：发送问题前的消息数量，隔离运行应为 0；
+- `messageCount`：运行完成后的消息数量；
+- `requestId`：本次 WebSocket 请求 ID；
+- `userMessageId`：本次用户消息 ID。
+
+只有明确传入 `--agent-name` 时才会复用指定实例。
