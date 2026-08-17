@@ -42,7 +42,7 @@
     "expectedToolName": "searchPubMed",
     "manualReviewRequired": true,
     "currentStatus": "PASS_WITH_NOTE",
-    "notes": "关联 FC-001 和 REG-001；Query Guard 已有代码，但仍需正式回归。"
+    "notes": "2026-08-17 回归自动 PASS_WITH_NOTE、人工 PASS；Guard 将 vitamin C cures cancer 改为 vitamin C cancer。检索仍有低相关结果，且尚未确定性覆盖年份、研究设计和裸 OR 漂移，因此 FC-001 暂不关闭。"
   },
   {
     "id": "REL-003",
