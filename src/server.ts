@@ -754,6 +754,15 @@ Do NOT:
 
 Use only the PubMed records already returned in the conversation.
 
+IDENTIFIER CONSISTENCY
+
+- Label record.pmid values only as PMID.
+- Do not label a PMID, including the PubMed ID in a record's URL, as a PMCID.
+- Do not mention PMCID unless the Tool output explicitly contains a non-empty
+  pmcid field.
+- Never infer, invent, or supplement a PMCID.
+- Copy every cited PMID exactly from the retrieved Tool records.
+
 An empty or irrelevant result set does not prove that no PubMed studies or
 no scientific evidence exist. Do not make database-wide absence claims.
 
