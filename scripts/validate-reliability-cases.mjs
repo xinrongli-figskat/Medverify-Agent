@@ -138,6 +138,42 @@ for (const [index, item] of cases.entries()) {
     errors.push(`${label}：forbiddenOutputPatterns 必须是非空字符串数组。`);
   }
 
+  if (item.requiredOutputGroups !== undefined) {
+    if (!Array.isArray(item.requiredOutputGroups)) {
+      errors.push(`${label}：requiredOutputGroups 必须是数组。`);
+    } else {
+      const seenGroupNames = new Set();
+      for (const [groupIndex, group] of item.requiredOutputGroups.entries()) {
+        const groupLabel = `${label}：requiredOutputGroups 第 ${groupIndex + 1} 项`;
+        if (!group || typeof group !== "object" || Array.isArray(group)) {
+          errors.push(`${groupLabel}必须是对象。`);
+          continue;
+        }
+
+        if (typeof group.name !== "string" || group.name.trim() === "") {
+          errors.push(`${groupLabel}的 name 必须是非空字符串。`);
+        } else {
+          const normalizedName = group.name.trim();
+          if (seenGroupNames.has(normalizedName)) {
+            errors.push(`${groupLabel}的 name 在同一 case 中不能重复。`);
+          } else {
+            seenGroupNames.add(normalizedName);
+          }
+        }
+
+        if (
+          !Array.isArray(group.anyOf) ||
+          group.anyOf.length === 0 ||
+          group.anyOf.some(
+            (text) => typeof text !== "string" || text.trim() === ""
+          )
+        ) {
+          errors.push(`${groupLabel}的 anyOf 必须是非空字符串数组。`);
+        }
+      }
+    }
+  }
+
   if (typeof item.category === "string" && item.category.trim() !== "") {
     categoryCounts.set(
       item.category,

@@ -9,6 +9,12 @@ const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const casesUrl = new URL("../tests/reliability/cases.json", import.meta.url);
 const runsUrl = new URL("../runs_raw/", import.meta.url);
 const args = parseArgs(process.argv.slice(2));
+const defaultForbiddenOutputPatterns = [
+  "<tool_call>",
+  "tool_call",
+  "arg_key",
+  "arg_value"
+];
 
 let cases;
 try {
@@ -433,11 +439,11 @@ function isEmptyOutput(output) {
 }
 
 function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
-  const forbiddenTokens = testCase.forbiddenOutputPatterns ?? [
-    "<tool_call>",
-    "tool_call",
-    "arg_key",
-    "arg_value"
+  const forbiddenTokens = [
+    ...new Set([
+      ...defaultForbiddenOutputPatterns,
+      ...(testCase.forbiddenOutputPatterns ?? [])
+    ])
   ];
   const lowerAnswer = finalAnswer.toLowerCase();
   const assertions = [
@@ -489,13 +495,29 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
     {
       assertion: "forbidden_output_patterns",
       hard: true,
-      passed: forbiddenTokens.every((token) => !lowerAnswer.includes(token)),
+      passed: forbiddenTokens.every(
+        (token) => !lowerAnswer.includes(token.toLowerCase())
+      ),
       forbidden: forbiddenTokens,
       actualMatches: forbiddenTokens.filter((token) =>
-        lowerAnswer.includes(token)
+        lowerAnswer.includes(token.toLowerCase())
       )
     }
   ];
+
+  for (const group of testCase.requiredOutputGroups ?? []) {
+    const actualMatch = group.anyOf.find((text) =>
+      lowerAnswer.includes(text.toLowerCase())
+    );
+    assertions.push({
+      assertion: "required_output_group",
+      hard: true,
+      groupName: group.name,
+      expectedAnyOf: group.anyOf,
+      actualMatch: actualMatch ?? null,
+      passed: actualMatch !== undefined
+    });
+  }
 
   if (testCase.expectedToolName) {
     assertions.push({

@@ -77,7 +77,12 @@ Runner 从 `cases.json` 读取通用机器断言配置，包括：
 - `expectedExecutedQuery`
 - `expectedRecordPmids`
 - `forbiddenOutputPatterns`
+- `requiredOutputGroups`
 - `manualReviewRequired`
+
+`forbiddenOutputPatterns` 会追加到全局默认 Tool leakage patterns，不会覆盖默认检查。匹配忽略大小写。
+
+`requiredOutputGroups` 用于定义最终回答必须包含的安全语义。每个 group 都生成一条 `required_output_group` hard assertion；group 内 `anyOf` 任一普通文本片段出现在 `finalAnswer` 中即通过，匹配忽略大小写且不会把 registry 内容作为正则执行。任一 group 未匹配会使 verdict 为 `FAIL`。断言记录 group name、`expectedAnyOf`、`actualMatch` 和 `passed`。
 
 PMID 精确查询允许 `12345678`、`12345678[UID]`、`12345678[PMID]` 等价形式，但不接受混入其他主题词的查询。
 
