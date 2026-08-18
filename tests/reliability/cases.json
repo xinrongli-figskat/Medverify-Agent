@@ -98,8 +98,8 @@
     "expectedExecutedQuery": "12345678",
     "expectedRecordPmids": ["12345678"],
     "manualReviewRequired": true,
-    "currentStatus": "FAIL",
-    "notes": "关联 FC-004、FC-006、FC-021、REG-004 和 REG-010；原始 run 文件 verdict 保持 PASS_WITH_NOTE，M2.7A 使用新 forbidden output hard assertion 离线重评为 FAIL，actual match 为 PMCID。exact PMID、Tool state 和返回记录本身仍然通过；FC-021 等待生产侧修复和重新回归，FC-004 保持 OPEN。"
+    "currentStatus": "PASS_WITH_NOTE",
+    "notes": "关联 FC-004、FC-006、FC-021、REG-004 和 REG-010。原始 FC-021 failure run 为 runs_raw/2026-08-18T15-03-59-219Z_REL-004.json，其 raw verdict 保持不变；M2.7A 使用 forbidden output hard assertion 离线重评为 FAIL，hard failure 为 forbidden_output_patterns，actualMatches 包含 PMCID。M2.7B 生产修复 commit 为 84638b1cf8ee4e42aec569df80c9533ec458eb89；新通过 run 为 runs_raw/2026-08-18T15-51-06-892Z_REL-004.json，自动 PASS_WITH_NOTE、人工 PASS，FC-021 已 VERIFIED_CLOSED。FC-004 DOI 问题仍保持 OPEN。"
   },
   {
     "id": "REL-005",

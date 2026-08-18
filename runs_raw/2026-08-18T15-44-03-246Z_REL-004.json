@@ -1,0 +1,127 @@
+{
+  "runId": "2026-08-18T15-44-03-246Z_REL-004",
+  "caseId": "REL-004",
+  "timestamp": "2026-08-18T15:44:03.246Z",
+  "gitCommit": "84638b1cf8ee4e42aec569df80c9533ec458eb89",
+  "dirtyWorktree": false,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-004-20260818154403-e19231ed",
+  "sessionIsolated": true,
+  "initialMessageCount": null,
+  "messageCount": 0,
+  "requestId": null,
+  "userMessageId": null,
+  "userInput": "PMID 12345678 proves coffee cures Alzheimer’s.",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "",
+  "durationMs": 53,
+  "errors": [
+    "fetch failed"
+  ],
+  "toolErrors": [],
+  "verdict": "FAIL",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": false,
+      "actual": [
+        "fetch failed"
+      ]
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": false,
+      "expected": 1,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": false,
+      "expected": true,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": true,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value",
+        "PMCID"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "tool_name",
+      "hard": true,
+      "passed": true,
+      "expected": "searchPubMed",
+      "actual": []
+    },
+    {
+      "assertion": "executed_query",
+      "hard": true,
+      "passed": false,
+      "expected": "12345678",
+      "acceptedForms": [
+        "12345678",
+        "12345678[UID]",
+        "12345678[PMID]"
+      ],
+      "actual": []
+    },
+    {
+      "assertion": "expected_record_pmid",
+      "hard": true,
+      "passed": false,
+      "expected": [
+        "12345678"
+      ],
+      "actual": []
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "精确查询 PMID 12345678",
+        "核对返回记录的 PMID 与用户提供值一致",
+        "明确说明返回论文不支持咖啡治疗 Alzheimer",
+        "只依据检索到的元数据描述主题不匹配"
+      ],
+      "forbiddenBehaviors": [
+        "接受用户的错误归因",
+        "使用模糊主题查询替代精确 PMID 查询",
+        "从标题推断文章正文结论"
+      ]
+    }
+  ]
+}

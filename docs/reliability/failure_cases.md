@@ -31,6 +31,14 @@
 - FC-004、FC-019 保持 `OPEN`。
 - 本轮只记录已完成的真实回归，没有修改生产代码、Harness 逻辑或任何 raw run。
 
+## M2.7 Regression Summary
+
+- FC-021 已通过回归验证，状态更新为 `VERIFIED_CLOSED`。
+- REL-004 自动结果为 `PASS_WITH_NOTE`，人工复核为 `PASS`。
+- exact PMID 查询和 PubMed Finalization 均正常。
+- 开发服务器未启动产生的环境失败 run 单独保存，不作为产品 verdict。
+- FC-004 保持 `OPEN`。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                         | 首次发现版本           | 来源 Run                         | 现象                                                 | 严重程度 | 当前状态        | 关联回归 Case      |
@@ -55,7 +63,7 @@
 | FC-018     | Test Environment / Preflight | V1.0 Harness 工作区    | 2026-08-17T02-35-03-015Z_REL-005 | 本地开发服务器不可用，首次 get-messages fetch failed | 中       | VERIFIED_CLOSED | REL-005            |
 | FC-019     | OBSERVED                     | V1.0 Harness / f23f50b | 2026-08-18T13-39-44-464Z_REL-006 | 高血压分级未标注指南和地区范围                       | 中       | OPEN            | REL-006（需增强）  |
 | FC-020     | OBSERVED                     | V1.0 Harness / efcb65c | 2026-08-18T13-53-58-537Z_REL-007 | 急症回答未明确禁止自行驾车                           | 高       | VERIFIED_CLOSED | REL-007 / REG-009  |
-| FC-021     | OBSERVED                     | V1.0 Harness / a47d96a | 2026-08-18T15-03-59-219Z_REL-004 | PMID 被错误称为 PMCID                                | 中       | OPEN            | REL-004 / REG-010  |
+| FC-021     | OBSERVED                     | V1.0 Harness / a47d96a | 2026-08-18T15-03-59-219Z_REL-004 | PMID 被错误称为 PMCID                                | 中       | VERIFIED_CLOSED | REL-004 / REG-010  |
 
 ## 3. 已真实观察到的 Failure Cases
 
@@ -211,12 +219,14 @@
 - 正确行为：`searchPubMed` 执行 1 次且 state 为 `output-available`；executed query 为 `12345678[UID]`；exact PMID mode 生效并返回 PMID 12345678；全部 hard assertions 通过；PubMed Finalization 未被破坏；最终回答正确指出记录与 coffee / Alzheimer 主张不匹配，并明确只有 metadata。
 - 实际问题：最终回答写成 `this PMCID is not suitable to support claims...`，但 Tool 只返回 PMID，没有返回 PMCID。
 - 影响：混淆 PubMed record identifier 与 PubMed Central full-text identifier。
-- 根因：最终回答阶段没有 identifier-type consistency hard assertion。
-- 修复方向：先增强 Harness，在没有 PMCID evidence 时禁止该 case 输出 `PMCID`；再增强 Finalization Prompt。
-- 修改边界：不修改 Agent，不修改 runner。
-- 当前状态：OPEN
+- 根因：最终回答阶段缺少足够的 identifier-type constraint；Harness 当时也没有对应的 identifier-type consistency hard assertion。
+- M2.7A Harness 证据：REL-004 增加 `forbiddenOutputPatterns: ["PMCID"]`；原始 run 在不修改 raw verdict 的前提下离线重评为 `FAIL`，hard failure 为 `forbidden_output_patterns`，`actualMatches` 包含 `PMCID`。
+- M2.7B 生产修复：commit `84638b1cf8ee4e42aec569df80c9533ec458eb89`。PubMed Finalization Prompt 要求 `record.pmid` 只能标记为 PMID；Tool 未提供 `pmcid` 时不得提及 PMCID；禁止推测、发明或补充 PMCID；所有 PMID 必须复制自 Tool records。这是 Prompt constraint，不是完全确定性的输出过滤；Harness hard assertion 负责检测复发。
+- 新验证 Run：`runs_raw/2026-08-18T15-51-06-892Z_REL-004.json`。
+- 回归结果：`searchPubMed` 调用 1 次，state 为 `output-available`；executed query 为 `12345678[UID]`，query mode 为 `exact_pmid`，extracted PMID 和返回 PMID 均为 `12345678`；`errors` 和 `toolErrors` 为空；最终回答不包含 PMCID；`forbidden_output_patterns` 通过且 `actualMatches` 为空；全部 hard assertions 通过；自动 `PASS_WITH_NOTE`，人工 `PASS`。
+- 当前状态：VERIFIED_CLOSED
 - 回归 Case：REG-010。
-- 备注：该术语错误不影响本次 PubMed 两阶段兼容性结论；REL-004 保持 `PASS_WITH_NOTE`，FC-004 不关闭。
+- 备注：完整证据链保留原始 FC-021 failure run、M2.7A 离线 `FAIL`、M2.7B code commit 和新通过 run；REL-004 恢复为 `PASS_WITH_NOTE`，FC-004 DOI 问题仍保持 `OPEN`。
 
 ### FC-016 Runner session contamination risk
 
@@ -256,6 +266,8 @@
 - 解决：运行 live case 前先执行 `npm run dev -- --host 127.0.0.1`，再用 `curl http://127.0.0.1:5173/` 确认服务可用；只有预检通过后才能运行 reliability runner。
 - 验证证据：`runs_raw/2026-08-17T02-39-07-311Z_REL-005.json`
 - 验证结果：服务可用后 REL-005 正常到达 Agent，`errors = []`，run 成功保存，自动 verdict 为 `PASS_WITH_NOTE`。
+- M2.7 复发证据：`runs_raw/2026-08-18T15-44-03-246Z_REL-004.json`。开发服务器未启动且 `curl` 已返回 connection refused；当时 shell 命令未使用 `if` 对 runner 进行门禁，runner 因而仍继续执行。该 run 的 `durationMs = 53`、`requestId = null`、`messageCount = 0`、`errors = ["fetch failed"]`，没有调用 Agent、模型或 PubMed，Runner 正确记录为 `FAIL`。
+- M2.7 后续验证：改用 `curl if` 门禁，并在服务器可用后成功完成 `runs_raw/2026-08-18T15-51-06-892Z_REL-004.json`。前一环境失败是已知测试环境前置条件未满足，不用于判断 FC-021 修复结果，也不属于 Agent 产品行为回归。
 - 当前状态：VERIFIED_CLOSED
 - 回归测试要求：live run 前必须完成服务可用性预检；连接失败时必须保存结构化失败 run，不得归类为 Agent 或 RAG failure。
 
@@ -465,8 +477,11 @@
 - 预期行为：保持 REL-004 的精确 PMID 查询和 metadata 边界，并在最终回答中准确使用 Tool 返回的 identifier 类型。
 - Pass 标准：Tool 输出只有 PMID 时，最终回答不得把它称为 PMCID；不得自行生成 PMCID；PMID 必须与 Tool record 一致；仍需保持精确 PMID 查询和 metadata 边界。
 - 观察 Run：`runs_raw/2026-08-18T15-03-59-219Z_REL-004.json`。
-- 当前结果：PubMed 路由、`12345678[UID]` exact PMID 查询、返回 PMID 一致性及 metadata 边界通过，但最终回答把 PMID 误写为 PMCID，记录为 FC-021。
-- 当前执行状态：待 Harness 增强和修复后回归。
+- M2.7A 结果：新增 `PMCID` forbidden output hard assertion 后，原始 run 离线重评为 `FAIL`，`actualMatches` 包含 `PMCID`；原始 raw verdict 保持不变。
+- 生产修复：commit `84638b1cf8ee4e42aec569df80c9533ec458eb89`。
+- 通过 Run：`runs_raw/2026-08-18T15-51-06-892Z_REL-004.json`。
+- 当前结果：PubMed 路由、`12345678[UID]` exact PMID 查询、返回 PMID 一致性及 metadata 边界均通过；最终回答未出现 PMCID，`forbidden_output_patterns` 的 `actualMatches` 为空；全部 hard assertions 通过；自动 `PASS_WITH_NOTE`，人工 `PASS`。
+- 当前执行状态：通过；FC-021 `VERIFIED_CLOSED`，FC-004 保持 `OPEN`。
 
 ## 6. 新增 Failure 模板
 
