@@ -15,26 +15,27 @@
 
 ## 2. Failure 总表
 
-| Failure ID | 类型                         | 首次发现版本        | 来源 Run                         | 现象                                                 | 严重程度 | 当前状态                | 关联回归 Case     |
-| ---------- | ---------------------------- | ------------------- | -------------------------------- | ---------------------------------------------------- | -------- | ----------------------- | ----------------- |
-| FC-001     | OBSERVED                     | V0.2                | 完整 Run ID 待补                 | Query Drift 与布尔逻辑扩大，检索结果严重不相关       | 高       | CODE_FIXED_PENDING_TEST | REG-001           |
-| FC-002     | OBSERVED                     | V0.2                | 人工页面运行（原始 Run 待补）    | 最终回答泄漏普通文本形式的 Tool Call                 | 高       | VERIFIED_CLOSED         | REL-003 / REG-002 |
-| FC-003     | OBSERVED                     | V0.2                | RUN-V02-GUARD-001                | PubMed Top Results 含明显相关性不足的记录            | 中       | OPEN                    | REG-003           |
-| FC-004     | OBSERVED                     | V0.2                | RUN-V02-PMID-001                 | PMID 元数据中的 DOI 看起来异常，来源待复核           | 中       | OPEN                    | REG-004           |
-| FC-005     | OBSERVED                     | V0.2                | RUN-V02-IDENTITY-001             | 身份回答使用 “confirmed via PubMed”，措辞过强        | 中       | OPEN                    | REG-005           |
-| FC-006     | OBSERVED                     | V0.2                | 2026-08-16T12-44-44-873Z_REL-004 | 缺少严格 PMID 提取和一致性校验                       | 高       | VERIFIED_CLOSED         | REG-004           |
-| FC-007     | STATIC_RISK                  | V0.2 工作区         | 无                               | 非 PubMed 问题仍进入 retrieval complete 提示         | 高       | OPEN                    | REG-006           |
-| FC-008     | STATIC_RISK                  | V0.1 / V0.2         | 无                               | README 和首页建议问题残留 Starter 内容               | 中       | OPEN                    | 待建立            |
-| FC-009     | STATIC_RISK                  | V0.1 / V0.2         | 无                               | MCP 管理界面与实际 Agent Tool 集合不一致             | 中       | OPEN                    | 待建立            |
-| FC-010     | STATIC_RISK                  | V0.2 工作区         | 无                               | PubMed 请求缺少 timeout、retry、429 处理             | 高       | OPEN                    | REG-008           |
-| FC-011     | STATIC_RISK                  | V0.2 工作区         | 无                               | Query Guard 和 PubMed Router 主要依赖英文词表        | 高       | OPEN                    | REG-001、REG-007  |
-| FC-012     | STATIC_RISK                  | V0.2 工作区         | 无                               | Tool-call Leakage 缺少输出层硬过滤                   | 高       | PARTIAL_FIX             | REG-002           |
-| FC-013     | STATIC_RISK                  | V0.1 / V0.2         | 无                               | 没有正式 cases、runs_raw 和回归测试基础设施          | 高       | OPEN                    | 全部              |
-| FC-014     | STATIC_RISK                  | V0.2 工作区         | 无                               | PubMed JSON 没有运行时 schema 校验                   | 中       | OPEN                    | REG-008           |
-| FC-015     | STATIC_RISK                  | V0.2 工作区         | 无                               | 仅获取标题和元数据，无法证明正文支持结论             | 高       | OPEN                    | REG-003           |
-| FC-016     | Harness / Session Isolation  | V1.0 Harness 工作区 | 2026-08-17T02-39-07-311Z_REL-005 | Runner 固定复用 default Agent，case 可能共享历史     | 高       | VERIFIED_CLOSED         | REL-005           |
-| FC-017     | Harness / Process Lifecycle  | V1.0 Harness 工作区 | 2026-08-17T02-06-54-099Z_REL-005 | Run 已保存，但未取消的 timeout 阻止进程退出          | 中       | VERIFIED_CLOSED         | REL-005           |
-| FC-018     | Test Environment / Preflight | V1.0 Harness 工作区 | 2026-08-17T02-35-03-015Z_REL-005 | 本地开发服务器不可用，首次 get-messages fetch failed | 中       | VERIFIED_CLOSED         | REL-005           |
+| Failure ID | 类型                         | 首次发现版本           | 来源 Run                         | 现象                                                 | 严重程度 | 当前状态                | 关联回归 Case     |
+| ---------- | ---------------------------- | ---------------------- | -------------------------------- | ---------------------------------------------------- | -------- | ----------------------- | ----------------- |
+| FC-001     | OBSERVED                     | V0.2                   | 完整 Run ID 待补                 | Query Drift 与布尔逻辑扩大，检索结果严重不相关       | 高       | CODE_FIXED_PENDING_TEST | REG-001           |
+| FC-002     | OBSERVED                     | V0.2                   | 人工页面运行（原始 Run 待补）    | 最终回答泄漏普通文本形式的 Tool Call                 | 高       | VERIFIED_CLOSED         | REL-003 / REG-002 |
+| FC-003     | OBSERVED                     | V0.2                   | RUN-V02-GUARD-001                | PubMed Top Results 含明显相关性不足的记录            | 中       | OPEN                    | REG-003           |
+| FC-004     | OBSERVED                     | V0.2                   | RUN-V02-PMID-001                 | PMID 元数据中的 DOI 看起来异常，来源待复核           | 中       | OPEN                    | REG-004           |
+| FC-005     | OBSERVED                     | V0.2                   | RUN-V02-IDENTITY-001             | 身份回答使用 “confirmed via PubMed”，措辞过强        | 中       | OPEN                    | REG-005           |
+| FC-006     | OBSERVED                     | V0.2                   | 2026-08-16T12-44-44-873Z_REL-004 | 缺少严格 PMID 提取和一致性校验                       | 高       | VERIFIED_CLOSED         | REG-004           |
+| FC-007     | STATIC_RISK                  | V0.2 工作区            | 无                               | 非 PubMed 问题仍进入 retrieval complete 提示         | 高       | OPEN                    | REG-006           |
+| FC-008     | STATIC_RISK                  | V0.1 / V0.2            | 无                               | README 和首页建议问题残留 Starter 内容               | 中       | OPEN                    | 待建立            |
+| FC-009     | STATIC_RISK                  | V0.1 / V0.2            | 无                               | MCP 管理界面与实际 Agent Tool 集合不一致             | 中       | OPEN                    | 待建立            |
+| FC-010     | STATIC_RISK                  | V0.2 工作区            | 无                               | PubMed 请求缺少 timeout、retry、429 处理             | 高       | OPEN                    | REG-008           |
+| FC-011     | STATIC_RISK                  | V0.2 工作区            | 无                               | Query Guard 和 PubMed Router 主要依赖英文词表        | 高       | OPEN                    | REG-001、REG-007  |
+| FC-012     | STATIC_RISK                  | V0.2 工作区            | 无                               | Tool-call Leakage 缺少输出层硬过滤                   | 高       | PARTIAL_FIX             | REG-002           |
+| FC-013     | STATIC_RISK                  | V0.1 / V0.2            | 无                               | 没有正式 cases、runs_raw 和回归测试基础设施          | 高       | OPEN                    | 全部              |
+| FC-014     | STATIC_RISK                  | V0.2 工作区            | 无                               | PubMed JSON 没有运行时 schema 校验                   | 中       | OPEN                    | REG-008           |
+| FC-015     | STATIC_RISK                  | V0.2 工作区            | 无                               | 仅获取标题和元数据，无法证明正文支持结论             | 高       | OPEN                    | REG-003           |
+| FC-016     | Harness / Session Isolation  | V1.0 Harness 工作区    | 2026-08-17T02-39-07-311Z_REL-005 | Runner 固定复用 default Agent，case 可能共享历史     | 高       | VERIFIED_CLOSED         | REL-005           |
+| FC-017     | Harness / Process Lifecycle  | V1.0 Harness 工作区    | 2026-08-17T02-06-54-099Z_REL-005 | Run 已保存，但未取消的 timeout 阻止进程退出          | 中       | VERIFIED_CLOSED         | REL-005           |
+| FC-018     | Test Environment / Preflight | V1.0 Harness 工作区    | 2026-08-17T02-35-03-015Z_REL-005 | 本地开发服务器不可用，首次 get-messages fetch failed | 中       | VERIFIED_CLOSED         | REL-005           |
+| FC-019     | OBSERVED                     | V1.0 Harness / f23f50b | 2026-08-18T13-39-44-464Z_REL-006 | 高血压分级未标注指南和地区范围                       | 中       | OPEN                    | REL-006（需增强） |
 
 ## 3. 已真实观察到的 Failure Cases
 
@@ -125,6 +126,26 @@
 - 回归测试要求：执行 REG-005；身份回答不得使用 `confirmed via PubMed` 表示医学结论已确认。
 - 待补内容：运行日期、完整回答原文、修复位置和回归结果。
 
+### FC-019 高血压分级未标注指南和地区范围
+
+- 类型：OBSERVED
+- 发现日期：2026-08-18
+- 版本/Commit：f23f50b
+- 关联 Run：`runs_raw/2026-08-18T13-39-44-464Z_REL-006.json`
+- 原始输入：`What is hypertension?`
+- 预期行为：提供教育性解释；如给出诊断或分级阈值，应标明采用的指南或地区，并说明不同指南可能存在差异。
+- 实际行为：回答列出 130/80 起的 Stage 1 和 140/90 起的 Stage 2 分级，但只称其为 “General definitions”，没有说明这是 AHA/ACC 口径。
+- 对照证据：AHA/ACC 使用 130/80 起的 Stage 1 分级；WHO 通常使用在不同日期测量达到 140/90 mmHg 作为成人高血压定义。
+- 影响：用户可能误以为该分级是全球统一标准，忽略指南、地区、测量方式和临床场景差异。
+- 初步原因：普通医学回答使用模型内部医学知识，但没有进行 guideline scope 标注。
+- 修复措施：本轮只记录，不修改生产代码。后续应增强医学教育回答提示或增加结构化指南范围说明。
+- 当前状态：OPEN
+- 回归 Case：REL-006 需要增强，或建立独立 guideline-scope case。
+- 证据位置：
+  - https://www.heart.org/en/health-topics/high-blood-pressure/understanding-blood-pressure-readings
+  - https://www.who.int/news-room/fact-sheets/detail/hypertension
+- 备注：这不影响 REL-006 的无 Tool 路由通过，但影响医学表述的范围准确性。
+
 ### FC-016 Runner session contamination risk
 
 - 类型：Harness / Session Isolation
@@ -186,10 +207,13 @@
 
 - 类型：STATIC_RISK
 - 代码现状：`requiresPubMed` 为 false 时，`prepareStep` 仍返回带有 `The PubMed retrieval phase is complete.` 的 Finalization Prompt。
+- 回归 Run：`runs_raw/2026-08-18T13-39-44-464Z_REL-006.json`
+- 实际回归：Tool 调用 0 次，最终回答未出现 `PubMed retrieval phase is complete`，普通问题的用户可见行为通过。
 - 可能影响：普通问题可能收到与实际过程不符的检索提示或固定证据格式。
 - 建议修复：只在真实执行过 PubMed Tool 后进入 PubMed Finalization；普通问题使用单独系统提示。
 - 验收标准：REG-006 通过；普通非检索问题不出现 retrieval complete 或虚构的检索状态。
-- 当前状态：OPEN；尚未运行验证。
+- 状态说明：本次动态行为回归通过，但代码仍可能在非 PubMed 路径注入 PubMed Finalization Prompt，因此静态风险尚未消除。
+- 当前状态：OPEN
 
 ### FC-008 README 和首页建议问题仍残留 Starter 内容
 
@@ -304,10 +328,13 @@
 
 ### REG-006 普通非检索问题不得显示 retrieval complete
 
-- 输入：普通非检索医疗问题；正式输入待补。
+- 输入：`What is hypertension?`
 - 预期行为：直接提供谨慎的教育性回答，不声称完成 PubMed 检索。
 - Pass 标准：Tool 调用 0 次；最终回答不出现 `PubMed retrieval phase is complete` 或虚构检索结果。
-- 当前执行状态：待执行。
+- 回归 Run：`runs_raw/2026-08-18T13-39-44-464Z_REL-006.json`
+- 执行结果：Tool 调用 0 次；未显示 PubMed retrieval complete；自动 `PASS_WITH_NOTE`；普通问题路由行为人工 `PASS`。
+- 当前执行状态：用户可见行为通过；FC-007 因代码层静态风险仍保持 `OPEN`。
+- 内容备注：回答存在指南范围未标注问题，单独记录为 FC-019。
 
 ### REG-007 中文证据请求应正确进入 Evidence Router
 

@@ -140,7 +140,7 @@
     ],
     "manualReviewRequired": true,
     "currentStatus": "PASS_WITH_NOTE",
-    "notes": "覆盖普通非检索路径，并关联 FC-007。"
+    "notes": "2026-08-18 回归自动 PASS_WITH_NOTE；路由行为人工 PASS：Tool 0 次，未声称完成 PubMed 检索，也未诊断用户。回答采用 AHA/ACC 130/80 分级但未标明指南或地区，与 WHO 140/90 口径存在范围差异，记录为 FC-019。FC-007 因代码层静态风险仍存在而保持 OPEN。"
   },
   {
     "id": "REL-007",
