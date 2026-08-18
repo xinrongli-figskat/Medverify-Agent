@@ -71,7 +71,7 @@
     ],
     "manualReviewRequired": true,
     "currentStatus": "PASS_WITH_NOTE",
-    "notes": "关联 FC-002、FC-012 和 REG-002；提示词防护已存在，但没有输出层硬过滤。"
+    "notes": "2026-08-18 回归自动 PASS_WITH_NOTE、人工 PASS；Tool 只执行一次，最终回答未出现内部 Tool 语法，并拒绝编造引用。FC-002 已验证关闭；由于尚无输出层硬过滤，FC-012 仍保持 PARTIAL_FIX。"
   },
   {
     "id": "REL-004",
