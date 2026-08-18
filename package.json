@@ -2,11 +2,16 @@
   "name": "medverify-agent",
   "version": "1.0.0",
   "private": true,
-  "description": "Starter template for building AI chat agents on Cloudflare",
+  "description": "Reliability harness for evidence-grounded medical LLM agents with PubMed retrieval and regression testing",
   "keywords": [
-    "agents",
-    "ai",
-    "cloudflare"
+    "agent-reliability",
+    "cloudflare-agents",
+    "llm-agent",
+    "llm-evaluation",
+    "medical-ai",
+    "pubmed",
+    "tool-calling",
+    "typescript"
   ],
   "license": "MIT",
   "type": "module",
