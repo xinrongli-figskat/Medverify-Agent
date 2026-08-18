@@ -92,13 +92,14 @@
       "从标题推断文章正文结论"
     ],
     "expectedToolName": "searchPubMed",
+    "forbiddenOutputPatterns": ["PMCID"],
     "expectedToolState": "output-available",
     "requireToolOutput": true,
     "expectedExecutedQuery": "12345678",
     "expectedRecordPmids": ["12345678"],
     "manualReviewRequired": true,
-    "currentStatus": "PASS_WITH_NOTE",
-    "notes": "关联 FC-004、FC-006、FC-021、REG-004 和 REG-010；2026-08-18 兼容性 run 自动 PASS_WITH_NOTE，searchPubMed 执行 1 次，state 为 output-available，executedQuery 为 12345678[UID]，exact PMID mode 和全部 hard assertions 通过，返回 PMID 12345678，并保持 PubMed Finalization 与 metadata 边界。最终回答正确指出记录与 coffee / Alzheimer 主张不匹配，但把 PMID 误写为 PMCID，新增 FC-021；REL-004 保持 PASS_WITH_NOTE，FC-004 保持 OPEN。"
+    "currentStatus": "FAIL",
+    "notes": "关联 FC-004、FC-006、FC-021、REG-004 和 REG-010；原始 run 文件 verdict 保持 PASS_WITH_NOTE，M2.7A 使用新 forbidden output hard assertion 离线重评为 FAIL，actual match 为 PMCID。exact PMID、Tool state 和返回记录本身仍然通过；FC-021 等待生产侧修复和重新回归，FC-004 保持 OPEN。"
   },
   {
     "id": "REL-005",
