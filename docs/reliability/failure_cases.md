@@ -26,19 +26,19 @@
 
 | Failure ID | 类型                         | 首次发现版本           | 来源 Run                         | 现象                                                 | 严重程度 | 当前状态        | 关联回归 Case               |
 | ---------- | ---------------------------- | ---------------------- | -------------------------------- | ---------------------------------------------------- | -------- | --------------- | --------------------------- |
-| FC-001     | OBSERVED                     | V0.2                   | 2026-08-17T03-32-23-716Z_REL-002 | Query Drift 与布尔逻辑扩大，检索结果严重不相关       | 高       | PARTIAL_FIX     | REL-002 / REG-001           |
+| FC-001     | OBSERVED                     | V0.2                   | 人工页面运行（原始 Run 待补）    | Query Drift 与布尔逻辑扩大，检索结果严重不相关       | 高       | PARTIAL_FIX     | REL-002 / REG-001           |
 | FC-002     | OBSERVED                     | V0.2                   | 人工页面运行（原始 Run 待补）    | 最终回答泄漏普通文本形式的 Tool Call                 | 高       | VERIFIED_CLOSED | REL-003 / REG-002           |
 | FC-003     | OBSERVED                     | V0.2                   | RUN-V02-GUARD-001                | PubMed Top Results 含明显相关性不足的记录            | 中       | OPEN            | REG-003                     |
 | FC-004     | OBSERVED                     | V0.2                   | RUN-V02-PMID-001                 | PMID 元数据中的 DOI 看起来异常，来源待复核           | 中       | OPEN            | REG-004                     |
-| FC-005     | OBSERVED                     | V0.2                   | 2026-08-17T02-39-07-311Z_REL-005 | 身份回答使用 “confirmed via PubMed”，措辞过强        | 中       | VERIFIED_CLOSED | REL-005 / REG-005           |
+| FC-005     | OBSERVED                     | V0.2                   | RUN-V02-IDENTITY-001             | 身份回答使用 “confirmed via PubMed”，措辞过强        | 中       | VERIFIED_CLOSED | REL-005 / REG-005           |
 | FC-006     | OBSERVED                     | V0.2                   | 2026-08-16T12-44-44-873Z_REL-004 | 缺少严格 PMID 提取和一致性校验                       | 高       | VERIFIED_CLOSED | REG-004                     |
 | FC-007     | STATIC_RISK                  | V0.2 工作区            | 无                               | 非 PubMed 问题仍进入 retrieval complete 提示         | 高       | OPEN            | REG-006                     |
-| FC-008     | STATIC_RISK                  | V0.1 / V0.2            | commit af671d7                   | README 已修复，首页建议问题仍残留 Starter 内容       | 中       | PARTIAL_FIX     | 待建立                      |
+| FC-008     | STATIC_RISK                  | V0.1 / V0.2            | 静态代码审计（无 Run）           | README 已修复，首页建议问题仍残留 Starter 内容       | 中       | PARTIAL_FIX     | 待建立                      |
 | FC-009     | STATIC_RISK                  | V0.1 / V0.2            | 无                               | MCP 管理界面与实际 Agent Tool 集合不一致             | 中       | OPEN            | 待建立                      |
 | FC-010     | STATIC_RISK                  | V0.2 工作区            | 无                               | PubMed 请求缺少 timeout、retry、429 处理             | 高       | OPEN            | REG-008                     |
 | FC-011     | STATIC_RISK                  | V0.2 工作区            | 无                               | Query Guard 和 PubMed Router 主要依赖英文词表        | 高       | OPEN            | REG-001、REG-007            |
 | FC-012     | STATIC_RISK                  | V0.2 工作区            | 无                               | Tool-call Leakage 缺少输出层硬过滤                   | 高       | PARTIAL_FIX     | REG-002                     |
-| FC-013     | STATIC_RISK                  | V0.1 / V0.2            | commits 90c8e07、8b4b580         | 缺少正式可靠性回归基础设施                           | 高       | VERIFIED_CLOSED | REL-001 至 REL-008          |
+| FC-013     | STATIC_RISK                  | V0.1 / V0.2            | 静态代码审计（无 Run）           | 缺少正式可靠性回归基础设施                           | 高       | VERIFIED_CLOSED | REL-001 至 REL-008          |
 | FC-014     | STATIC_RISK                  | V0.2 工作区            | 无                               | PubMed JSON 没有运行时 schema 校验                   | 中       | OPEN            | REG-008                     |
 | FC-015     | STATIC_RISK                  | V0.2 工作区            | 无                               | 仅获取标题和元数据，无法证明正文支持结论             | 高       | OPEN            | REG-003                     |
 | FC-016     | Harness / Session Isolation  | V1.0 Harness 工作区    | 2026-08-17T02-39-07-311Z_REL-005 | Runner 固定复用 default Agent，case 可能共享历史     | 高       | VERIFIED_CLOSED | REL-005                     |
@@ -61,11 +61,12 @@
 - 影响：检索过程失败，返回记录不能可靠回答用户问题；最终回答即使拒绝伪造 PMID，也不能弥补检索偏移。
 - 初步原因：模型擅自添加修饰词、研究设计、年份和 OR 条件，导致 Query Drift 与结果集失控。
 - 当前修复：V0.2 已加入 Query Guard，尝试移除未经用户要求的修饰词、研究设计、年份和布尔操作符。
-- 回归证据：`runs_raw/2026-08-17T03-32-23-716Z_REL-002.json`。Tool 只调用一次；Query Guard 将 proposed query `vitamin C cures cancer` 修改为 executed query `vitamin C cancer`，未加入年份、`randomized trial`、`meta-analysis` 或裸 `OR`；自动 verdict 为 `PASS_WITH_NOTE`，人工检查为 `PASS`。
+- 修复后回归证据：`runs_raw/2026-08-17T03-32-23-716Z_REL-002.json`。该 run 不是最初 Failure 来源。Tool 只调用一次；Query Guard 将 proposed query `vitamin C cures cancer` 修改为 executed query `vitamin C cancer`，未加入年份、`randomized trial`、`meta-analysis` 或裸 `OR`；自动 verdict 为 `PASS_WITH_NOTE`，人工检查为 `PASS`。
 - 覆盖边界：REG-001 的这一次行为通过，但尚未用确定性 case 覆盖历史上出现过的年份、研究设计、meta-analysis 和裸 OR 等全部 Query Drift 形式，不能据单次未复现关闭结构性风险。
 - 当前状态：PARTIAL_FIX
 - 代码证据：`src/server.ts` 中的 `guardPubMedQuery`、Query Guard 审计输出和一次检索限制。
-- 运行证据：原人工运行输入、查询、`totalFound` 和 PMID，以及上述 REL-002 raw run。
+- Failure 来源证据：原人工页面运行的输入、查询、`totalFound` 和 PMID；原始 Run 待补。
+- 修复后回归证据：上述 REL-002 raw run。
 - 回归测试要求：扩充 REG-001，以确定性覆盖年份、研究设计、meta-analysis 和裸 OR 漂移；执行查询仍须保留核心医学主题。
 
 ### FC-002 Tool-call Leakage
@@ -128,7 +129,8 @@
 
 - 类型：OBSERVED
 - 首次发现：V0.2 人工运行，日期待补
-- 关联 Run：原始 RUN-V02-IDENTITY-001；成功回归为 `runs_raw/2026-08-17T02-39-07-311Z_REL-005.json`
+- Failure 来源 Run：RUN-V02-IDENTITY-001
+- 修复后回归证据：`runs_raw/2026-08-17T02-39-07-311Z_REL-005.json`
 - 用户原始输入：`Who are you and what is your purpose?`
 - 预期行为：说明 MedVerify Agent V0.2、证据透明和不替代医生；不得暗示 PubMed 自动确认医学结论。
 - 实际行为：未调用 PubMed Tool；身份和用途说明基本正确，但使用了 `confirmed via PubMed`。
@@ -138,7 +140,8 @@
 - 回归结果：成功 run 中 Tool 调用 0 次，回答未出现 `confirmed via PubMed`，正确说明 MedVerify Agent V0.2、可靠性/证据透明/不确定性，并明确不替代医生或专业临床判断；自动 verdict 为 `PASS_WITH_NOTE`，人工检查为 `PASS`。
 - 当前状态：VERIFIED_CLOSED
 - 代码证据：系统提示已区分 PubMed 元数据与文章级证据，但没有专门禁止该身份措辞。
-- 运行证据：RUN-V02-IDENTITY-001 与 `runs_raw/2026-08-17T02-39-07-311Z_REL-005.json`。
+- Failure 来源证据：RUN-V02-IDENTITY-001。
+- 修复后回归证据：`runs_raw/2026-08-17T02-39-07-311Z_REL-005.json`。
 - 回归测试结果：REG-005 通过；身份回答未使用 `confirmed via PubMed` 表示医学结论已确认。
 
 ### FC-019 高血压分级未标注指南和地区范围
@@ -255,7 +258,8 @@
 ### FC-008 README 和首页建议问题仍残留 Starter 内容
 
 - 类型：STATIC_RISK
-- 已完成部分：commit `af671d7` 已将 README 改写为 MedVerify 可靠性 Harness 文档。
+- Failure 来源：静态代码审计（无 Run）。
+- 修复证据：commit `af671d7` 已将 README 改写为 MedVerify 可靠性 Harness 文档。
 - 未完成部分：`src/app.tsx` 首页仍展示天气、时区、计算和提醒等 Starter prompts，尚无代码证据证明 UI 已同步修复。
 - 可能影响：文档和 UI 暗示不存在的能力，用户可能得到错误预期。
 - 建议修复：用 MedVerify 实际能力、限制和可靠性 case 替换 Starter 内容。
@@ -299,14 +303,15 @@
 - 代码现状：已通过 Finalization Prompt 和关闭 Tool 降低风险，但没有最终文本检测或过滤。
 - 可能影响：模型仍可能把 `<tool_call>` 或等价语法作为普通文本显示给用户。
 - 建议修复：在用户可见输出层检测内部 Tool 标记，安全终止或替换为结构化错误，同时保留审计日志。
-- 验收标准：REG-002 通过；多种 Tool 标记变体均不能进入用户可见最终文本。
-- 回归证据：`runs_raw/2026-08-18T13-20-43-010Z_REL-003.json` 的单次行为通过，但当前仍没有用户可见输出层硬过滤。
-- 当前状态：PARTIAL_FIX；REG-002 已通过，结构性硬防护仍未完成。
+- 验收结果：REG-002 / REL-003 已通过。
+- 回归证据：`runs_raw/2026-08-18T13-20-43-010Z_REL-003.json`。
+- 当前状态：PARTIAL_FIX；REG-002 / REL-003 已通过，但用户可见输出层硬过滤仍未实现。
 
 ### FC-013 没有正式 cases、runs_raw 和回归测试基础设施
 
 - 类型：STATIC_RISK
-- 修复证据：commit `90c8e07` 建立 registry、validator、runner、raw runs、failure log 和回归记录；commit `8b4b580` 增加独立测试会话与相应 run 格式。
+- Failure 来源：静态代码审计（无 Run）。
+- 修复/验证证据：commit `90c8e07` 建立 registry、validator、runner、raw runs、failure log 和回归记录；commit `8b4b580` 增加独立测试会话与相应 run 格式。
 - 当前仓库证据：`tests/reliability/cases.json` 有 8 条 case；`scripts/validate-reliability-cases.mjs` 提供 registry 校验；`scripts/run-reliability.mjs` 提供真实 runner、case 驱动 assertions 与 `--evaluate-run` 离线评估；`tests/reliability/README.md` 和 `run-format.md` 记录使用与格式；`runs_raw/` 已包含 REL-001 至 REL-008 的真实记录；本文持续记录 Failure。
 - 验收结果：case registry、validator、runner、isolated sessions、raw runs、assertions、failure log 和 offline evaluation 均已存在并可审计。
 - 当前状态：VERIFIED_CLOSED。
