@@ -187,6 +187,6 @@
     "expectedToolName": "searchPubMed",
     "manualReviewRequired": true,
     "currentStatus": "PASS_WITH_NOTE",
-    "notes": "关联 FC-011 和 REG-007；当前 Router 主要依赖英文词表，但输入中包含 PubMed。"
+    "notes": "2026-08-18 回归自动 PASS_WITH_NOTE、核心中文证据路由人工 PASS；正确调用一次 searchPubMed，Query Guard 删除裸 OR，最终回答说明只有 metadata。返回结果仍包含与癌症辅助治疗不直接相关的 COVID-19 病例，executedQuery 也存在关键词重复，因此 FC-003 保持 OPEN。本次输入明确包含 PubMed，尚不能关闭中文路由词表风险 FC-011。"
   }
 ]

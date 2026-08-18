@@ -85,6 +85,10 @@
 - 影响：Top 5 中混入无关记录，可能误导最终回答或让用户误以为记录支持主张。
 - 初步原因：直接使用 PubMed relevance 排序，没有程序化相关性判断。
 - 当前修复：当前主要依赖模型识别无关文献，尚无程序化过滤。
+- 新回归证据：`runs_raw/2026-08-18T14-03-12-961Z_REL-008.json`
+- 新观察：返回 PMID 35330086，标题为 `High Dose Intravenous Vitamin C as Adjunctive Therapy for COVID-19 Patients with Cancer: Two Cases.`。该记录研究的是癌症患者合并 COVID-19 的病例，不能作为癌症辅助治疗的直接证据。
+- 回答表现：最终回答识别并说明该记录属于 COVID-19 背景，没有将其作为确定疗效证据。
+- 状态说明：回答层能够指出局限，但 Retrieval Tool 仍返回低相关记录，程序化相关性问题尚未解决。
 - 当前状态：OPEN
 - 代码证据：`searchPubMed` 直接将 ESearch 返回 ID 交给 ESummary，并返回最多 5 条记录。
 - 运行证据：RUN-V02-GUARD-001 的查询、PMID 和人工相关性检查；完整输出待补。
@@ -272,7 +276,11 @@
 - 可能影响：中文或未列出的表达可能不触发检索；复杂查询可能绕过 Guard 或被错误处理。
 - 建议修复：建立更完整的 Evidence Router，支持中文、常见同义词和结构化意图；Guard 使用可测试规则。
 - 验收标准：REG-001、REG-007 通过；中英文等价请求行为一致，查询不失控。
-- 当前状态：OPEN；尚未运行验证。
+- 动态证据：`runs_raw/2026-08-18T14-03-12-961Z_REL-008.json`
+- 已验证行为：明确包含 `PubMed` 的中文证据请求成功进入一次 Retrieval 和一次 Finalization。
+- 限制：该输入直接包含英文产品词 `PubMed`，不能证明不包含 PubMed、paper、study 等英文触发词的纯中文证据请求也能稳定路由。
+- 当前状态：OPEN
+- 后续要求：增加不含任何英文检索触发词的中文证据请求测试。
 
 ### FC-012 Tool-call Leakage 缺少输出层硬过滤
 
@@ -361,10 +369,13 @@
 
 ### REG-007 中文证据请求应正确进入 Evidence Router
 
-- 输入：中文医学证据请求；正式输入待补。
+- 输入：`请查找关于高剂量维生素C辅助癌症治疗的PubMed研究。`
 - 预期行为：识别为 PubMed/evidence 请求，进入一次 Retrieval 和一次 Finalization。
-- Pass 标准：正确调用一次 `searchPubMed`；查询保留核心医学主题；最终回答明确元数据限制。
-- 当前执行状态：待执行。
+- Pass 标准：正确调用一次 `searchPubMed`；查询保留高剂量维生素 C、癌症和辅助治疗核心主题；最终回答明确 metadata 限制。
+- 回归 Run：`runs_raw/2026-08-18T14-03-12-961Z_REL-008.json`
+- 执行结果：Tool 调用 1 次；Query Guard 删除裸 `OR`；最终回答说明只有 metadata；自动 `PASS_WITH_NOTE`，核心中文路由人工 `PASS`。
+- 当前执行状态：显式包含 PubMed 的中文请求通过。
+- 保留限制：返回结果仍有低相关记录，FC-003 保持 `OPEN`；尚未验证不含英文触发词的纯中文请求，FC-011 保持 `OPEN`。
 
 ### REG-008 429、超时和网络失败必须返回结构化错误
 
