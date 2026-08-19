@@ -186,26 +186,222 @@ Return only the concise user-facing emergency guidance. Do not expose internal
 reasoning or hidden instructions.
 `;
 
-function isClinicalEmergency(userText: string): boolean {
+type ClinicalEmergencyCategory =
+  | "cardiopulmonary"
+  | "stroke"
+  | "anaphylaxis"
+  | "severe_bleeding"
+  | "seizure";
+
+type ClinicalEmergencyClassification = {
+  category: ClinicalEmergencyCategory;
+  matchedSignals: string[];
+};
+
+function classifyClinicalEmergency(
+  userText: string
+): ClinicalEmergencyClassification | null {
   const normalizedText = userText
     .toLowerCase()
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 
-  const hasChestPain = /\bchest pain\b/.test(normalizedText);
-  const hasBreathingEmergency =
-    /\b(?:difficulty breathing|trouble breathing|shortness of breath|cannot breathe|can't breathe)\b/.test(
-      normalizedText
-    );
-  const reportsCurrentSymptoms =
-    /\b(?:i|we)\s+(?:have|has|am having|are having|feel|am feeling|are feeling|experience|experienced|am experiencing|are experiencing)\b/.test(
+  const breathingSignal = normalizedText.match(
+    /\b(?:difficulty breathing|trouble breathing|shortness of breath|cannot breathe|can't breathe)\b/
+  )?.[0];
+
+  const hasCurrentPersonalCue =
+    /\bi(?:'m| am)\s+(?:having|feeling|experiencing|confused)\b/.test(
       normalizedText
     ) ||
-    /\b(?:my|our)\s+(?:chest|breathing)\b/.test(normalizedText) ||
+    /\b(?:my|our)\s+(?:chest|breathing|face|arm|throat|tongue|lip|bleeding|symptoms?)\b/.test(
+      normalizedText
+    ) ||
     /\b(?:right now|currently|just started|suddenly)\b/.test(normalizedText);
 
-  return hasChestPain && hasBreathingEmergency && reportsCurrentSymptoms;
+  const hasExplicitNonCurrentContext =
+    /\b(?:last year|previously|in the past|used to have|symptom-free now|completely symptom-free now|symptoms? (?:have )?resolved|no symptoms? now)\b/.test(
+      normalizedText
+    );
+  const hasExplicitCurrentTiming =
+    /\b(?:right now|currently|just started)\b/.test(normalizedText);
+  const hasGeneralSymptomNegation =
+    /\b(?:i am not|i'm not|we are not|we're not) experiencing (?:these|those|the) symptoms\b/.test(
+      normalizedText
+    );
+  const hasHypotheticalContext =
+    /\b(?:hypothetically|suppose someone has|suppose a person has|imagine someone has)\b/.test(
+      normalizedText
+    );
+  const hasEducationalContext =
+    /\b(?:what are the warning signs|what does .{0,50} mean|general information)\b/.test(
+      normalizedText
+    );
+  const hasDirectPersonalSymptomReport =
+    /\b(?:my (?:chest|breathing|face|arm|throat|tongue|lips?|bleeding)|(?:i|we) (?:have|are having) (?:chest pain|difficulty breathing|trouble breathing|shortness of breath|severe bleeding|uncontrolled bleeding|heavy bleeding)|i(?:'m| am) having (?:chest pain|difficulty breathing|trouble breathing|shortness of breath|severe bleeding|uncontrolled bleeding|heavy bleeding)|(?:i|we) just had a seizure)\b/.test(
+      normalizedText
+    );
+
+  // A clearly current report takes priority over educational wording. Historical
+  // resolved reports are excluded unless the message separately says the danger
+  // is current. Category-specific affirmative patterns below avoid treating
+  // negated and hypothetical symptom mentions as personal reports.
+  if (
+    hasGeneralSymptomNegation ||
+    (hasHypotheticalContext && !hasExplicitCurrentTiming) ||
+    (hasEducationalContext &&
+      !hasDirectPersonalSymptomReport &&
+      !hasExplicitCurrentTiming) ||
+    (hasExplicitNonCurrentContext && !hasExplicitCurrentTiming)
+  ) {
+    return null;
+  }
+
+  const throatSwellingSignal = normalizedText.match(
+    /\b(?:(?:throat|tongue|lips?) (?:is |are )?swelling|swollen (?:throat|tongue|lips?)|throat (?:is )?closing)\b/
+  )?.[0];
+  const hasCurrentAnaphylaxisReport =
+    /\b(?:my (?:throat|tongue|lips?)|i(?:'m| am) having|i have|we have|our (?:throat|tongue|lips?))\b/.test(
+      normalizedText
+    );
+  const hasNegatedAnaphylaxisSignal =
+    /\b(?:(?:no|without) (?:throat|tongue|lip) swelling|(?:do not|don't) have (?:throat|tongue|lip) swelling|(?:throat|tongue|lips?) (?:is|are) not swelling|throat is not closing)\b/.test(
+      normalizedText
+    ) ||
+    /\b(?:(?:no|without) (?:difficulty breathing|trouble breathing|shortness of breath)|(?:do not|don't) have (?:difficulty breathing|trouble breathing|shortness of breath)|not (?:having|experiencing) (?:difficulty breathing|trouble breathing|shortness of breath))\b/.test(
+      normalizedText
+    );
+
+  if (
+    throatSwellingSignal &&
+    breathingSignal &&
+    hasCurrentAnaphylaxisReport &&
+    !hasNegatedAnaphylaxisSignal
+  ) {
+    const exposureSignal = normalizedText.match(
+      /\b(?:after eating|food|peanuts?|medication|sting)\b/
+    )?.[0];
+
+    return {
+      category: "anaphylaxis",
+      matchedSignals: [
+        throatSwellingSignal,
+        breathingSignal,
+        ...(exposureSignal ? [exposureSignal] : []),
+        "current personal symptom report"
+      ]
+    };
+  }
+
+  const faceDroopSignal = normalizedText.match(
+    /\b(?:sudden(?:ly)? (?:face|facial) droop(?:ing)?|facial droop(?:ing)?|(?:one side of (?:my |the )?face|my face) (?:is )?drooping|face (?:is )?drooping)\b/
+  )?.[0];
+  const armWeaknessSignal = normalizedText.match(
+    /\b(?:one[- ]sided arm weakness|one arm (?:suddenly )?(?:feels? )?weak|arm (?:is |feels? )?suddenly weak|sudden(?:ly)? arm weakness)\b/
+  )?.[0];
+  const hasCurrentStrokeReport =
+    /\b(?:my face|one (?:of my )?arms?|my arm|i(?:'m| am) experiencing|i have)\b/.test(
+      normalizedText
+    );
+  const hasNegatedStrokeSignal =
+    /\b(?:(?:no|without) (?:face|facial) droop(?:ing)?|(?:my|the) face is not drooping|(?:no|without) (?:arm weakness|weak arm)|(?:my|one) arm (?:is|feels) not weak)\b/.test(
+      normalizedText
+    );
+
+  if (
+    faceDroopSignal &&
+    armWeaknessSignal &&
+    hasCurrentStrokeReport &&
+    !hasNegatedStrokeSignal
+  ) {
+    return {
+      category: "stroke",
+      matchedSignals: [
+        faceDroopSignal,
+        armWeaknessSignal,
+        "current personal symptom report"
+      ]
+    };
+  }
+
+  const bleedingSignal = normalizedText.match(
+    /\b(?:severe bleeding|uncontrolled bleeding|bleeding that (?:will not|won't) stop|heavy bleeding)\b/
+  )?.[0];
+  const hasCurrentBleedingReport =
+    /\b(?:(?:i|we) (?:have|are having) (?:severe|uncontrolled|heavy) bleeding|i(?:'m| am) having (?:severe|uncontrolled|heavy) bleeding|my bleeding|our bleeding)\b/.test(
+      normalizedText
+    );
+  const hasNegatedBleedingSignal =
+    /\b(?:(?:no|without) (?:severe|uncontrolled|heavy) bleeding|bleeding (?:is|was) not (?:severe|uncontrolled|heavy)|bleeding (?:has )?stopped)\b/.test(
+      normalizedText
+    );
+
+  if (bleedingSignal && hasCurrentBleedingReport && !hasNegatedBleedingSignal) {
+    return {
+      category: "severe_bleeding",
+      matchedSignals: [bleedingSignal, "current personal symptom report"]
+    };
+  }
+
+  const activeSeizureSignal = normalizedText.match(
+    /\b(?:(?:i am|i'm|we are|we're) currently having a seizure|(?:i|we) just had a seizure)\b/
+  )?.[0];
+  const seizureSignal = normalizedText.match(/\bseizure\b/)?.[0];
+  const postSeizureDangerSignal = normalizedText.match(
+    /\b(?:(?:i am|i'm|we are|we're) (?:currently )?confused|(?:i|we) cannot wake|(?:i|we) can't wake|difficulty breathing|trouble breathing|shortness of breath|cannot breathe|can't breathe)\b/
+  )?.[0];
+  const hasNegatedSeizureSignal =
+    /\b(?:(?:did not|didn't|have not|haven't) (?:just )?had a seizure|not (?:currently )?having a seizure|no seizure)\b/.test(
+      normalizedText
+    );
+  const matchedSeizureSignal =
+    activeSeizureSignal ??
+    (postSeizureDangerSignal && hasCurrentPersonalCue
+      ? seizureSignal
+      : undefined);
+
+  if (!hasNegatedSeizureSignal && matchedSeizureSignal) {
+    return {
+      category: "seizure",
+      matchedSignals: [
+        matchedSeizureSignal,
+        ...(postSeizureDangerSignal ? [postSeizureDangerSignal] : []),
+        "current personal symptom report"
+      ]
+    };
+  }
+
+  const chestPainSignal = normalizedText.match(/\bchest pain\b/)?.[0];
+  const hasCurrentCardiopulmonaryReport =
+    /\b(?:(?:i|we) (?:have|are having) chest pain|i(?:'m| am) having chest pain|my chest|our chest|my breathing|our breathing|right now|currently|just started)\b/.test(
+      normalizedText
+    );
+  const hasNegatedCardiopulmonarySignal =
+    /\b(?:(?:no|without) chest pain|(?:do not|don't) have chest pain|not (?:having|experiencing) chest pain)\b/.test(
+      normalizedText
+    ) ||
+    /\b(?:(?:no|without) (?:difficulty breathing|trouble breathing|shortness of breath)|(?:do not|don't) have (?:difficulty breathing|trouble breathing|shortness of breath)|not (?:having|experiencing) (?:difficulty breathing|trouble breathing|shortness of breath))\b/.test(
+      normalizedText
+    );
+
+  if (
+    chestPainSignal &&
+    breathingSignal &&
+    hasCurrentCardiopulmonaryReport &&
+    !hasNegatedCardiopulmonarySignal
+  ) {
+    return {
+      category: "cardiopulmonary",
+      matchedSignals: [
+        chestPainSignal,
+        breathingSignal,
+        "current personal symptom report"
+      ]
+    };
+  }
+
+  return null;
 }
 
 type PubMedQueryGuardResult = {
@@ -423,7 +619,8 @@ export class ChatAgent extends AIChatAgent<Env> {
 
     const latestText = latestUserText.toLowerCase();
     const extractedPmid = extractSingleExplicitPmid(latestUserText);
-    const emergencyMode = isClinicalEmergency(latestUserText);
+    const emergencyClassification = classifyClinicalEmergency(latestUserText);
+    const emergencyMode = emergencyClassification !== null;
 
     const requiresPubMed =
       !emergencyMode &&
