@@ -36,6 +36,14 @@ node scripts/run-reliability.mjs --evaluate-run runs_raw/<run-file>.json
 
 离线模式只读取 run 和当前 `cases.json`，不连接服务器、不调用模型或 PubMed，也不修改原始 run。发现 hard failure 时退出码为 1。
 
+## Final answer non-empty assertion
+
+`final_answer_non_empty` 是对所有 case 和所有 run 生效的全局 hard assertion，不需要 case registry 单独启用。仅当 `finalAnswer` 的类型是字符串，且 `finalAnswer.trim().length > 0` 时通过。断言记录 `actualType`、原始 `actualLength` 和 `trimmedLength`；`undefined`、`null`、非字符串、空字符串和纯空白字符串都失败，并使 verdict 为 `FAIL`。
+
+assistant message 存在、`messageCount` 大于零、Tool 已执行或 `errors=[]` 都不能证明存在用户可见最终回答。此 assertion 也只证明回答非空，不能证明回答正确、相关、安全或完整。
+
+评估不会修改或标准化 raw run 中的 `finalAnswer`，也不会写入 fallback 文本。`runs_raw/*.json` 中的原始值永远保持原样。
+
 ## PMID citation grounding assertion
 
 `pmid_citation_grounding` 是全局 hard assertion，不需要 case registry 单独启用。结果字段为：

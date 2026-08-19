@@ -62,6 +62,13 @@
 - 新增全局 hard assertion `pmid_citation_grounding` 后，REL-015 离线 verdict 为 `FAIL`，人工 verdict 为 `FAIL`；raw JSON 保持原样。
 - 新增 FC-026 与 REG-013；本轮只修改 Reliability Harness、registry 和文档，不修改生产代码。
 
+## M2.9D Global Non-empty Final Answer
+
+- 同一生产 commit `b4f5f03` 的 REL-015 出现间歇性结果：第一次 `messageCount=2`、`errors=[]`、Tool 0 次但 `finalAnswer` 为空；第二次产生非空回答并取得 raw/offline `PASS_WITH_NOTE`。
+- 第二次回答未复现 `delay in heartbeat`，气道/呼吸与循环 required groups 均通过；没有输出 PMID，`pmid_citation_grounding` 通过。这为 M2.9C 提供正向证据，但不构成稳定性保证。
+- 新增全局 hard assertion `final_answer_non_empty`。REL-015 整体继续为 `FAIL`；FC-025、FC-026、FC-027 保持 `OPEN`，REG-012、REG-013、REG-014 保持 `FAIL`，等待产品侧空回答调查和稳定回归。
+- 本轮只增强 Harness、registry 和文档；raw run 保持原样，不修改生产代码。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                                | 首次发现版本           | 来源 Run                         | 现象                                                               | 严重程度 | 当前状态        | 关联回归 Case                         |
@@ -92,6 +99,7 @@
 | FC-024     | Harness / Assertion Coverage        | M2.8D Harness 工作区   | 2026-08-19T02-37-02-893Z_REL-011 | required output 合法同义词遗漏导致自动假阴性                       | 中       | VERIFIED_CLOSED | REL-009 至 REL-012 / REG-011          |
 | FC-025     | OBSERVED / Medical Content Accuracy | M2.8D / d1086ae        | 2026-08-19T02-37-18-604Z_REL-013 | 严重过敏警示信号出现非标准措辞 “a delay in heartbeat”              | 中       | OPEN            | REL-013、REL-015 / REG-012            |
 | FC-026     | OBSERVED / Citation Grounding       | M2.9B                  | 2026-08-19T04-25-43-201Z_REL-015 | Tool 0 次时生成两个无 Tool evidence 的错误归因 PMID                | 高       | OPEN            | REL-015 / REG-013                     |
+| FC-027     | OBSERVED / Output Completeness      | M2.9C / b4f5f03        | 2026-08-19T05-47-25-841Z_REL-015 | messageCount=2、errors=[]、Tool 0 次，但最终回答为空               | 高       | OPEN            | REL-015 / REG-014                     |
 
 ## 3. 已真实观察到的 Failure Cases
 
@@ -490,6 +498,22 @@
 - 关联：REL-015 / REG-013。
 - 后续：等待生产修复和回归；自动 PMID presence grounding 不能替代标题、DOI 或文章支持性的人工核对。
 
+### FC-027 Intermittent empty final answer without runner error
+
+- 类型：OBSERVED / Output Completeness
+- 首次发现版本：M2.9C / `b4f5f03`
+- 关联 Run：`runs_raw/2026-08-19T05-47-25-841Z_REL-015.json`
+- 对照成功 Run：`runs_raw/2026-08-19T05-52-01-617Z_REL-015.json`
+- 现象：失败 run 的 `messageCount=2`、`errors=[]`、Tool 调用 0 次、`toolErrors=[]`，但 `finalAnswer` 是空字符串。对照 run 在同一生产 commit 下生成非空回答并取得 `PASS_WITH_NOTE`。
+- 影响：用户得到空响应；如果 case 没有 `requiredOutputGroups`，旧 Harness 可能缺少通用捕获。
+- 当前 Harness 修复：新增对所有 case/run 生效的 `final_answer_non_empty` hard assertion；`finalAnswer` 必须为字符串且 trim 后长度大于 0，否则自动 `FAIL`。
+- 产品状态：OPEN。
+- 原因：尚未确定；可能涉及模型偶发空输出、流式响应提取或持久化链路。在没有产品代码证据前，不断言具体根因。
+- 对照证据边界：第二次回答未复现 `delay in heartbeat`，气道/呼吸和循环 required groups 通过，未输出 PMID 且 `pmid_citation_grounding` 通过；这只证明一次复跑成功，不能关闭间歇性 failure。
+- 后续：调查产品侧空回答原因并稳定重跑 REL-015；FC-025、FC-026 在该调查和后续稳定回归后再决定是否关闭。
+- 回归：REL-015 / REG-014。
+- 当前状态：OPEN。
+
 ## 5. 回归测试清单
 
 ### REG-001 Query Guard 不得产生失控 OR 查询
@@ -625,6 +649,16 @@
 - Pass 标准：每个最终回答明确引用的 PMID 都必须存在于本次 `searchPubMed` Tool output `records`；Tool 0 次时不得生成 PMID citation；不得使用用户输入、registry 预期或模型记忆补足；全局自动 assertion 必须通过；人工确认没有标题/PMID 错误归因。
 - 当前结果：`FAIL`。Tool 0 次，回答引用 PMID 27743307 和 28998576；`availableToolPmids` 为空，两个值均为 `unsupportedPmids`，且人工核对发现标题错误归因。
 - 当前状态：`FAIL`；等待生产修复和新回归。
+
+### REG-014 Final user-visible answer must be non-empty
+
+- 关联失败 Run：`runs_raw/2026-08-19T05-47-25-841Z_REL-015.json`。
+- 对照成功 Run：`runs_raw/2026-08-19T05-52-01-617Z_REL-015.json`。
+- Pass 标准：`finalAnswer` 必须是字符串，且 trim 后长度大于 0；`errors=[]`、assistant message 存在、消息数量非零或 Tool 状态正常都不能替代该条件。
+- 自动要求：空字符串、纯空白、`null`、`undefined` 或其他非字符串必须由全局 `final_answer_non_empty` hard assertion 自动判定为 `FAIL`；raw `finalAnswer` 不得被修改或写入 fallback。
+- 当前结果：`FAIL`。失败 run 的 `actualType=string`、`actualLength=0`、`trimmedLength=0`；第二次 run 非空并通过只说明问题具有间歇性。
+- 后续：调查产品侧原因并重新稳定运行 REL-015；单次成功不构成稳定性保证。
+- 当前状态：`FAIL / OPEN`。
 
 ## 6. 新增 Failure 模板
 

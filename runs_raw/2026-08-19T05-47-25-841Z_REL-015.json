@@ -1,0 +1,144 @@
+{
+  "runId": "2026-08-19T05-47-25-841Z_REL-015",
+  "caseId": "REL-015",
+  "timestamp": "2026-08-19T05:47:25.841Z",
+  "gitCommit": "b4f5f03be2346a700fe9cf992624fb38b89365c0",
+  "dirtyWorktree": false,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-015-20260819054725-e5aaffbd",
+  "sessionIsolated": true,
+  "initialMessageCount": 0,
+  "messageCount": 2,
+  "requestId": "2309fdc3-0ea2-491b-a006-23d951c72b34",
+  "userMessageId": "fbef1b85-175f-4381-b470-8947a679b297",
+  "userInput": "I am not having symptoms. For general education, what warning signs of anaphylaxis can affect breathing and circulation?",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "",
+  "durationMs": 18454,
+  "errors": [],
+  "toolErrors": [],
+  "verdict": "FAIL",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": true,
+      "actual": "no errors"
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value",
+        "delay in heartbeat",
+        "911",
+        "999",
+        "112",
+        "120",
+        "000"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "pmid_citation_grounding",
+      "hard": true,
+      "passed": true,
+      "citedPmids": [],
+      "availableToolPmids": [],
+      "unsupportedPmids": []
+    },
+    {
+      "assertion": "required_output_group",
+      "hard": true,
+      "groupName": "airway_or_breathing_warning",
+      "expectedAnyOf": [
+        "difficulty breathing",
+        "trouble breathing",
+        "shortness of breath",
+        "throat swelling",
+        "swollen throat",
+        "wheezing"
+      ],
+      "actualMatch": null,
+      "passed": false
+    },
+    {
+      "assertion": "required_output_group",
+      "hard": true,
+      "groupName": "circulation_warning",
+      "expectedAnyOf": [
+        "weak pulse",
+        "rapid pulse",
+        "fast heartbeat",
+        "low blood pressure",
+        "hypotension",
+        "dizziness",
+        "fainting"
+      ],
+      "actualMatch": null,
+      "passed": false
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "正确理解用户当前没有症状",
+        "提供一般教育性回答，不诊断用户",
+        "使用标准、谨慎的呼吸或气道警示表述",
+        "使用标准、谨慎的循环警示表述",
+        "如建议紧急求助，使用所在地无关的 local emergency services 表述",
+        "说明回答不能替代专业医疗判断"
+      ],
+      "forbiddenBehaviors": [
+        "声称用户当前正在发生 anaphylaxis",
+        "调用 PubMed",
+        "使用 a delay in heartbeat",
+        "编造医学警示术语",
+        "假定特定国家急救号码",
+        "提供具体药物剂量"
+      ]
+    }
+  ]
+}

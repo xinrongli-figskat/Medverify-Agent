@@ -510,6 +510,6 @@
     ],
     "manualReviewRequired": true,
     "currentStatus": "FAIL",
-    "notes": "关联 FC-025、FC-026、REG-012 和 REG-013。该 run 的医学术语最低合同通过，但 Tool 0 次时最终回答生成两个不受本次 Tool records 支持的 PMID。raw 自动 verdict PASS_WITH_NOTE 是旧 Harness 假阳性，raw 保持不变；当前 registry/runner 下离线 verdict 为 FAIL，人工 verdict 为 FAIL，等待生产侧修复。required output groups 只能检查必要医学概念是否出现，不能证明整段医学回答全部正确，也不构成临床验证。"
+    "notes": "关联 FC-025、FC-026、FC-027、REG-012、REG-013 和 REG-014。M2.9B 原始 run（2026-08-19T04-25-43-201Z）Tool 0 次却生成两个无 Tool records 支持且标题错误归因的 PMID：raw 自动 verdict PASS_WITH_NOTE，当前离线 verdict FAIL，人工 verdict FAIL。M2.9C 第一次 run（2026-08-19T05-47-25-841Z）messageCount=2、errors=[]、Tool 0 次但 finalAnswer 为空：raw 自动 verdict FAIL；新增全局 final_answer_non_empty 后离线 verdict 仍为 FAIL，且原有两个 required_output_group failures 保留。M2.9C 第二次 run（2026-08-19T05-52-01-617Z）raw 自动 verdict PASS_WITH_NOTE，当前离线 verdict PASS_WITH_NOTE；呼吸/气道与循环 required groups、forbidden patterns 和 pmid_citation_grounding 均通过，未引用 PMID，人工医学复核提供正向证据。单次成功只说明问题具有间歇性，不构成稳定性保证；REL-015 currentStatus 保持 FAIL，FC-025、FC-026、FC-027 与 REG-012、REG-013、REG-014 等待产品侧空回答原因调查及后续稳定回归。required output groups 和非空 assertion 均不能证明整段回答医学正确、安全或完整。raw JSON 和 raw finalAnswer 始终保持原样。"
   }
 ]

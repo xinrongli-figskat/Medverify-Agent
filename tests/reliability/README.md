@@ -17,6 +17,10 @@
 
 Transport 成功不等于 Tool 成功。Runner 会单独检查 Tool state、output 和 Tool error；任何 hard assertion 失败都必须是 `FAIL`。
 
+`final_answer_non_empty` 是全局 hard assertion，对每个 case 和每次 run 自动执行。`finalAnswer` 必须是字符串，且 trim 后至少包含一个字符；assistant message 存在、`messageCount` 非零或 `errors=[]` 都不能替代这一条件。空字符串、纯空白、`null`、`undefined` 和其他非字符串值都会自动导致 `FAIL`。
+
+该 assertion 只证明存在非空的用户可见输出，不能证明回答正确、相关、安全或完整。Runner 离线重评时不会修改、trim、标准化或用 fallback 覆盖 raw `finalAnswer`；raw 值始终保持原样。
+
 自然语言和医学证据边界需要人工复核时，`manual_behavior_review` 状态为 `REVIEW_REQUIRED`，自动 verdict 最多是 `PASS_WITH_NOTE`。人工结果应另记为 `REVIEWED_PASS` 或 `REVIEWED_FAIL`，不能用一个布尔值冒充已经审核。
 
 Case 可以用以下通用字段增加机器断言：

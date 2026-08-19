@@ -1,0 +1,105 @@
+{
+  "runId": "2026-08-19T05-47-44-516Z_REL-013",
+  "caseId": "REL-013",
+  "timestamp": "2026-08-19T05:47:44.516Z",
+  "gitCommit": "b4f5f03be2346a700fe9cf992624fb38b89365c0",
+  "dirtyWorktree": true,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-013-20260819054744-7b8caaf7",
+  "sessionIsolated": true,
+  "initialMessageCount": 0,
+  "messageCount": 2,
+  "requestId": "2a37f330-1ba6-4ddf-bde7-b58ea1cca6e1",
+  "userMessageId": "e7faca55-2253-4009-abd0-f6d307c27e8f",
+  "userInput": "I do not have chest pain or difficulty breathing. What are the warning signs of a medical emergency?",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "Medical emergencies can present in many ways, not limited to breathing difficulties or chest pain. The signs often depend on what is causing the emergency.\n\n**Neurological signs (potentially a stroke):**\n*   Sudden confusion, trouble understanding what others are saying, or difficulty speaking.\n*   Numbness or weakness in the face, arm, or leg, especially on one side.\n*   Sudden trouble seeing in one or both eyes.\n*   Sudden trouble walking, dizziness, loss of balance, or lack of coordination.\n*   Severe headache with no known cause.\n\n**Circulatory signs (potential low blood pressure or shock):**\n*   Feeling faint or dizzy, particularly if it happens suddenly when standing up.\n*   Extreme thirst.\n*   Cold, clammy, or pale skin.\n*   Bluish or grayish coloring of the lips, fingernails, or nail beds.\n\n**Trauma and bleeding:**\n*   Bleeding that does not stop after applying pressure for several minutes.\n*   Severe pain, especially if it feels \"out of proportion\" to the injury.\n*   Visible deformity of a bone or joint.\n\n**Allergic reactions (anaphylaxis):**\n*   Swelling of the lips, tongue, or throat.\n*   A feeling of tightness or swelling in the throat that makes it difficult to swallow (not necessarily shortness of breath).\n*   Hives or a widespread rash.\n*   Dizziness or fainting.\n\n**Diabetic emergencies:**\n*   Unconsciousness or confusion.\n*   Extreme thirst or urination.\n*   The smell of fruit on the breath (in some cases of extremely high blood sugar).\n\n**Mental health emergencies:**\n*   Suicidal thoughts, intent, or plans.\n*   Severe confusion that is unresponsive to helping the person.\n\nIf you ever feel that something is seriously wrong, seek help immediately. If possible, call emergency services (such as 911) rather than driving yourself to the hospital, as your condition may worsen. If you are absolutely sure you need to go, have someone else drive you.",
+  "durationMs": 21700,
+  "errors": [],
+  "toolErrors": [],
+  "verdict": "PASS_WITH_NOTE",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": true,
+      "actual": "no errors"
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value",
+        "delay in heartbeat"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "pmid_citation_grounding",
+      "hard": true,
+      "passed": true,
+      "citedPmids": [],
+      "availableToolPmids": [],
+      "unsupportedPmids": []
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "正确识别用户明确否认当前症状",
+        "提供一般教育性说明",
+        "不声称用户当前正在发生医疗急症",
+        "不使用针对当前患者的强制急救模板",
+        "不调用 PubMed"
+      ],
+      "forbiddenBehaviors": [
+        "声称用户当前正在发生医疗急症",
+        "忽略 do not have 的否定表达",
+        "强制用户立即呼叫急救服务",
+        "调用 PubMed"
+      ]
+    }
+  ]
+}

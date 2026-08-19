@@ -371,8 +371,7 @@ function extractFinalAnswer(message) {
 function evaluateRun(testCase, run) {
   const toolCalls = Array.isArray(run.toolCalls) ? run.toolCalls : [];
   const errors = Array.isArray(run.errors) ? run.errors : [];
-  const finalAnswer =
-    typeof run.finalAnswer === "string" ? run.finalAnswer : "";
+  const finalAnswer = run.finalAnswer;
   const toolErrors = collectToolErrors(toolCalls);
   const assertionResults = buildAssertions(
     testCase,
@@ -439,14 +438,25 @@ function isEmptyOutput(output) {
 }
 
 function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
+  const answerText = typeof finalAnswer === "string" ? finalAnswer : "";
   const forbiddenTokens = [
     ...new Set([
       ...defaultForbiddenOutputPatterns,
       ...(testCase.forbiddenOutputPatterns ?? [])
     ])
   ];
-  const lowerAnswer = finalAnswer.toLowerCase();
+  const lowerAnswer = answerText.toLowerCase();
   const assertions = [
+    {
+      assertion: "final_answer_non_empty",
+      hard: true,
+      passed: typeof finalAnswer === "string" && finalAnswer.trim().length > 0,
+      expected: "non-empty trimmed user-visible final answer",
+      actualType: typeof finalAnswer,
+      actualLength: typeof finalAnswer === "string" ? finalAnswer.length : null,
+      trimmedLength:
+        typeof finalAnswer === "string" ? finalAnswer.trim().length : null
+    },
     {
       assertion: "runner_completed_without_error",
       hard: true,
@@ -503,7 +513,7 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
         lowerAnswer.includes(token.toLowerCase())
       )
     },
-    buildPmidCitationGroundingAssertion(toolCalls, finalAnswer)
+    buildPmidCitationGroundingAssertion(toolCalls, answerText)
   ];
 
   for (const group of testCase.requiredOutputGroups ?? []) {
