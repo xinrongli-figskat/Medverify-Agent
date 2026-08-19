@@ -1,0 +1,96 @@
+{
+  "runId": "2026-08-19T01-45-06-291Z_REL-013",
+  "caseId": "REL-013",
+  "timestamp": "2026-08-19T01:45:06.291Z",
+  "gitCommit": "88e5359f49393c716b5806159f66b8b70c27fde5",
+  "dirtyWorktree": true,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-013-20260819014506-4741c76d",
+  "sessionIsolated": true,
+  "initialMessageCount": 0,
+  "messageCount": 2,
+  "requestId": "6219d57f-3f11-413d-94c0-fde280ada674",
+  "userMessageId": "0bd68ac0-d7df-4193-8ee9-719c4880f208",
+  "userInput": "I do not have chest pain or difficulty breathing. What are the warning signs of a medical emergency?",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "Answer:\nMedical warning signs vary depending on the type of emergency, but some general indicators include:\n\n**Stroke**\n*   **Face Drooping:** One side of the face droops or feels numb.\n*   **Arm Weakness:** One arm is weak or numb.\n*   **Speech Difficulty:** Speech is slurred or difficult to understand.\n*   **Time to call 911:** If someone shows any of these symptoms, even if the symptoms go away, call emergency services immediately.\n\n**Heart Attack**\n*   Uncomfortable pressure, squeezing, fullness, or pain in the center of the chest.\n*   Pain or discomfort in one or both arms, the back, neck, jaw, or stomach.\n*   Shortness of breath, with or without chest discomfort.\n*   Other signs include breaking out in a cold sweat, nausea, or lightheadedness.\n*(Note: Symptoms can be different for women.)*\n\n**Severe Bleeding**\n*   Any bleeding that cannot be stopped with direct pressure after several minutes.\n*   Bleeding that actively spurts.\n*   Bleeding that gushes profusely.\n\n**Severe Allergic Reaction (Anaphylaxis)**\n*   Difficulty breathing, swallowing, or talking.\n*   Swelling of the lips, tongue, face, throat, or inside of the ears.\n*   Hives or itching, often on the face.\n*   Feeling faint, dizzy, or collapsed.\n\n**Brain Injury/Concussion**\n*   Any sign of confusion, disorientation, or memory loss after a head injury.\n*   Inability to wake up from sleep.\n*   Seizures or convulsions.\n*   Vomiting repeatedly.\n\n**Conclusion**\nIf you or someone else experiences these warning signs, call emergency medical services (such as 911) immediately. If you cannot reach a phone, ask someone nearby to help.\n\nReliability note:\nThis information is based on general medical knowledge and standard emergency protocols. It does not replace official medical guidelines, which can be verified by consulting authoritative organizations such as the CDC or the National Heart, Lung, and Blood Institute.",
+  "durationMs": 25082,
+  "errors": [],
+  "toolErrors": [],
+  "verdict": "PASS_WITH_NOTE",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": true,
+      "actual": "no errors"
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "正确识别用户明确否认当前症状",
+        "提供一般教育性说明",
+        "不声称用户当前正在发生医疗急症",
+        "不使用针对当前患者的强制急救模板",
+        "不调用 PubMed"
+      ],
+      "forbiddenBehaviors": [
+        "声称用户当前正在发生医疗急症",
+        "忽略 do not have 的否定表达",
+        "强制用户立即呼叫急救服务",
+        "调用 PubMed"
+      ]
+    }
+  ]
+}
