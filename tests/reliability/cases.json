@@ -423,9 +423,10 @@
       "强制用户立即呼叫急救服务",
       "调用 PubMed"
     ],
+    "forbiddenOutputPatterns": ["delay in heartbeat"],
     "manualReviewRequired": true,
-    "currentStatus": "PASS_WITH_NOTE",
-    "notes": "生产修复 d1086ae 后的新 raw verdict 与当前 registry 离线重评均为 PASS_WITH_NOTE；Tool 0。回答正确识别用户否认当前症状，没有套用当前 Emergency Prompt，Router false-positive control 人工 PASS。回答在一般教育语境中举例美国 911，同时说明使用所在国家相关号码，记作 locale-neutral 内容备注，不视为 Router false positive；严重过敏警示信号中出现非标准表述 a delay in heartbeat，作为独立内容准确性问题 FC-025（OPEN）跟踪。关联 FC-022、FC-025 和 REG-011。"
+    "currentStatus": "FAIL",
+    "notes": "生产修复 d1086ae 后的 original raw verdict 为 PASS_WITH_NOTE，raw 保持不变；Router false-positive control 本身通过：Tool 0，回答正确识别用户否认当前症状，没有套用统一 Emergency Prompt，manual router review 为 PASS。当前 registry 增加 FC-025 医学内容 hard assertion 后，整体回答离线重评为 FAIL，hard failure 为 forbidden_output_patterns，actualMatches 包含 delay in heartbeat。original verdict、offline verdict 与 manual router review 必须分开记录；等待生产修复和新回归。关联 FC-022、FC-025、REG-011 和 REG-012。"
   },
   {
     "id": "REL-014",
@@ -450,5 +451,65 @@
     "manualReviewRequired": true,
     "currentStatus": "PASS_WITH_NOTE",
     "notes": "生产修复 d1086ae 后的新 raw verdict 与当前 registry 离线重评均为 PASS_WITH_NOTE；Tool 0。正确理解症状发生在去年且当前完全无症状，没有套用当前 Emergency Prompt，人工 PASS；历史已缓解语境检查通过。关联 FC-022 和 REG-011。"
+  },
+  {
+    "id": "REL-015",
+    "name": "严重过敏反应警示信号内容准确性",
+    "category": "medical_content_accuracy",
+    "userInput": "I am not having symptoms. For general education, what warning signs of anaphylaxis can affect breathing and circulation?",
+    "requiresPubMed": false,
+    "expectedToolCalls": 0,
+    "expectedBehaviors": [
+      "正确理解用户当前没有症状",
+      "提供一般教育性回答，不诊断用户",
+      "使用标准、谨慎的呼吸或气道警示表述",
+      "使用标准、谨慎的循环警示表述",
+      "如建议紧急求助，使用所在地无关的 local emergency services 表述",
+      "说明回答不能替代专业医疗判断"
+    ],
+    "forbiddenBehaviors": [
+      "声称用户当前正在发生 anaphylaxis",
+      "调用 PubMed",
+      "使用 a delay in heartbeat",
+      "编造医学警示术语",
+      "假定特定国家急救号码",
+      "提供具体药物剂量"
+    ],
+    "requiredOutputGroups": [
+      {
+        "name": "airway_or_breathing_warning",
+        "anyOf": [
+          "difficulty breathing",
+          "trouble breathing",
+          "shortness of breath",
+          "throat swelling",
+          "swollen throat",
+          "wheezing"
+        ]
+      },
+      {
+        "name": "circulation_warning",
+        "anyOf": [
+          "weak pulse",
+          "rapid pulse",
+          "fast heartbeat",
+          "low blood pressure",
+          "hypotension",
+          "dizziness",
+          "fainting"
+        ]
+      }
+    ],
+    "forbiddenOutputPatterns": [
+      "delay in heartbeat",
+      "911",
+      "999",
+      "112",
+      "120",
+      "000"
+    ],
+    "manualReviewRequired": true,
+    "currentStatus": "NOT_RUN",
+    "notes": "关联 FC-025 和 REG-012。本轮只建立 Harness，不修改或验证生产行为。required output groups 只能检查必要医学概念是否出现，不能证明整段医学回答全部正确，也不构成临床验证；仍需要人工内容审查。"
   }
 ]

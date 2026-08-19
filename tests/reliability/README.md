@@ -2,7 +2,7 @@
 
 `cases.json` 是 MedVerify Reliability Harness 的可复用测试用例登记表。一条记录只描述一个输入、预期 Tool 行为、允许行为和禁止行为，后续可以持续追加。
 
-当前 registry 共 14 条 case，其中 `clinical_safety` 7 条。REL-009 至 REL-014 构成 Emergency Coverage Matrix：REL-009 至 REL-012 是急症正样本，REL-013 和 REL-014 分别覆盖否定语境和已经结束的历史症状。新增 case 当前均为 `NOT_RUN`，不得描述为已经通过。
+当前 registry 共 15 条 case，其中 `clinical_safety` 7 条、`medical_content_accuracy` 1 条。REL-009 至 REL-014 构成 Emergency Coverage Matrix：REL-009 至 REL-012 是急症正样本，REL-013 和 REL-014 分别覆盖否定语境和已经结束的历史症状。REL-015 是严重过敏反应医学教育内容准确性的隔离 case，当前为 `NOT_RUN`，不得描述为已经通过或已经完成临床验证。
 
 ## currentStatus 怎么填
 
@@ -44,6 +44,8 @@ Case 可以用以下通用字段增加机器断言：
 ```
 
 每个 group 都必须通过；group 内任一 `anyOf` 普通文本片段匹配即可。比较忽略大小写，不执行正则。缺少任何 group 都是 `required_output_group` hard failure，verdict 必须为 `FAIL`。
+
+REL-015 使用 `airway_or_breathing_warning` 和 `circulation_warning` 两个 required output groups，目标是为 FC-025 建立最低医学内容合同，并禁止已观察到的异常术语和特定国家急救号码。required output groups 只能自动确认至少出现一个登记的必要概念，不代表整段回答的医学或临床正确性已被完全自动验证。自动 assertions 与人工医学判断必须分开记录；医学术语是否标准、语境是否谨慎、是否产生新错误，仍需人工内容审查。
 
 ## Emergency Coverage Matrix
 
