@@ -18,6 +18,8 @@ Runner 使用已安装的 `agents/client` 中的 `AgentClient`，连接 `ChatAge
 
 Runner 发送完整 UI message 列表，等待对应 request ID 的完成事件，然后从同一 Agent 的 `/get-messages` 端点读取持久化消息。Tool 调用和最终回答都从真实 assistant message parts 中提取。
 
+收到匹配 `requestId` 的 `done` 后，Runner 立即执行第一次 `get-messages`，再有界观察同一次 turn 的持久化摘要。polling 不会再次发送 chat request，因此不是模型 retry，也不会以 `finalAnswer` 变成非空作为停止条件。
+
 ## 文件位置
 
 每次真实运行保存为：
@@ -75,6 +77,29 @@ Grounding 通过只表示 PMID 出现在本次 Tool records 中，不能单独�
 - `toolErrors`：Tool state、空 output 和 Tool 自报错误的统一列表。
 - `verdict`：`FAIL`、`PASS_WITH_NOTE` 或 `PASS`。
 - `assertionResults`：自动断言结果和仍需人工检查的行为。
+- `diagnostics`：仅未来 live run 可选的 versioned、非敏感完成观察；旧 raw 可以没有此字段。
+
+## Diagnostics v1
+
+`diagnostics` 包含：
+
+- Stream：`responseStatus`、`matchingFrameCount`、`doneFrameCount`、`errorFrameCount`、`malformedFrameCount`、`uiChunkTypeCounts`、`uiFinishSeen`、实际 chunk 明确提供时的 `uiFinishReason`，以及 `requestCompletedAt`。
+- Persistence：`pollingAttempts`、`pollingElapsedMs`、`completionCriterion`、`assistantChangedDuringPolling`、`firstAssistantObservedAt`、`finalAnswerExtractedAt` 和 `pollSnapshots`。
+- Output source：固定的 `finalAnswerSource: "assistant.text_parts"` 与最后选中 assistant 的 `assistantSummary`。
+
+UI body 按已安装协议优先解析单个 JSON UI chunk；对于 SSE body，只解析每条 `data:` 行并忽略 `[DONE]`。只累计 chunk `type`，不保存 text/reasoning delta。诊断解析失败只增加 `malformedFrameCount`，不会被伪装成模型错误，也不会吞掉既有 error、close 或 timeout。
+
+每个 `assistantSummary` 仅包含 `found`、ID/role、part 数量与有序类型、按类型计数、text part 数量/长度/state、合并文本的原始和 trim 后长度、reasoning/tool/other 数量，以及明确的 `finishReason`。它不包含 text/reasoning 正文、Tool payload、完整 metadata 或 `providerMetadata`。
+
+持久化常量为 200ms poll interval、5000ms 总观察窗口、26 个 snapshot 上限。停止原因：
+
+- `explicit_terminal_state`：assistant metadata 有明确 `finishReason`，或所有带 state 的 part 均为 Runner 认识的 terminal state。
+- `stable_assistant_summary`：已找到目标 assistant，完成至少一次额外 GET，且连续两次摘要相同。
+- `observation_window_elapsed`：达到 5 秒观察窗口。
+- `max_poll_snapshots`：达到快照数量上限。
+- `not_observed`：初始化值；live persistence observation 正常结束后会被具体原因替换。
+
+`pollSnapshots` 只保存相对毫秒数、message count 和安全摘要。最终 `finalAnswer` 仍只从最后一次选中 assistant 的 `type === "text"` parts 提取；reasoning 和 Tool output 都不会成为回答。diagnostics 不参与新的 hard verdict，不能证明医学正确性，也不能单独确定 provider 根因。`final_answer_non_empty` 仍是全局 hard assertion。
 
 Transport 成功只代表请求和消息链路完成，不代表 Tool 成功。任何 Tool 不是 `output-available`、output 为空或存在 Tool error，都会导致 hard assertion 失败。
 

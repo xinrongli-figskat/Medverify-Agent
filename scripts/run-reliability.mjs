@@ -15,6 +15,9 @@ const defaultForbiddenOutputPatterns = [
   "arg_key",
   "arg_value"
 ];
+const PERSISTENCE_POLL_INTERVAL_MS = 200;
+const PERSISTENCE_OBSERVATION_WINDOW_MS = 5000;
+const MAX_POLL_SNAPSHOTS = 26;
 
 let cases;
 try {
@@ -65,6 +68,11 @@ if (args.evaluateRunPath) {
   process.exit(evaluation.verdict === "FAIL" ? 1 : 0);
 }
 
+if (args.selfTest) {
+  await runSelfTests();
+  process.exit(0);
+}
+
 if (args.dryRun) {
   const selected = args.caseId
     ? cases.find((item) => item.id === args.caseId)
@@ -113,6 +121,8 @@ let finalMessages = [];
 let requestId = null;
 let userMessageId = null;
 let initialMessageCount = null;
+let streamDiagnostics = createStreamDiagnostics();
+let persistenceDiagnostics = createPersistenceDiagnostics();
 
 try {
   const existingMessages = await getMessages(normalizedBaseUrl, agentName);
@@ -144,9 +154,22 @@ try {
     "等待 Agent WebSocket 连接超时"
   );
 
-  await waitForTurn(client, requestId, messages, args.timeoutMs);
-  finalMessages = await getMessages(normalizedBaseUrl, agentName);
+  const turnResult = await waitForTurn(
+    client,
+    requestId,
+    messages,
+    args.timeoutMs
+  );
+  streamDiagnostics = turnResult.diagnostics;
+  const observation = await observePersistence(
+    normalizedBaseUrl,
+    agentName,
+    userMessageId
+  );
+  finalMessages = observation.messages;
+  persistenceDiagnostics = observation.diagnostics;
 } catch (error) {
+  if (error?.diagnostics) streamDiagnostics = error.diagnostics;
   errors.push(messageOf(error));
 } finally {
   client?.close(1000, "Reliability run complete");
@@ -163,6 +186,9 @@ if (!assistantMessage && errors.length === 0) {
 
 const toolCalls = extractToolCalls(assistantMessage);
 const finalAnswer = extractFinalAnswer(assistantMessage);
+if (persistenceDiagnostics.finalAnswerExtractedAt === null) {
+  persistenceDiagnostics.finalAnswerExtractedAt = new Date().toISOString();
+}
 const evaluation = evaluateRun(reliabilityCase, {
   errors,
   toolCalls,
@@ -188,6 +214,13 @@ const run = {
   toolCallCount: toolCalls.length,
   toolCalls,
   finalAnswer,
+  diagnostics: {
+    version: 1,
+    ...streamDiagnostics,
+    ...persistenceDiagnostics,
+    finalAnswerSource: "assistant.text_parts",
+    assistantSummary: summarizeAssistantMessage(assistantMessage)
+  },
   durationMs: Date.now() - startedAt,
   errors,
   toolErrors: evaluation.toolErrors,
@@ -222,6 +255,7 @@ function parseArgs(argv) {
     agentName: null,
     timeoutMs: 120000,
     dryRun: false,
+    selfTest: false,
     evaluateRunPath: null
   };
 
@@ -229,6 +263,10 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--dry-run") {
       result.dryRun = true;
+      continue;
+    }
+    if (arg === "--self-test") {
+      result.selfTest = true;
       continue;
     }
     if (arg === "--evaluate-run")
@@ -258,9 +296,18 @@ function requiredValue(argv, index, flag) {
 
 function waitForTurn(agent, requestId, messages, timeoutMs) {
   return new Promise((resolve, reject) => {
+    const diagnostics = createStreamDiagnostics();
+    const rejectWithDiagnostics = (error, status) => {
+      diagnostics.responseStatus = status;
+      error.diagnostics = diagnostics;
+      reject(error);
+    };
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error(`Agent turn 在 ${timeoutMs}ms 内未完成`));
+      rejectWithDiagnostics(
+        new Error(`Agent turn 在 ${timeoutMs}ms 内未完成`),
+        "timeout"
+      );
     }, timeoutMs);
 
     const onMessage = (event) => {
@@ -274,18 +321,31 @@ function waitForTurn(agent, requestId, messages, timeoutMs) {
       if (data.type !== "cf_agent_use_chat_response" || data.id !== requestId) {
         return;
       }
+      diagnostics.matchingFrameCount += 1;
+      inspectUiBody(data.body, diagnostics);
       if (data.error) {
+        diagnostics.errorFrameCount += 1;
+        diagnostics.responseStatus = "error";
         cleanup();
-        reject(new Error(data.body || "Agent stream error"));
+        rejectWithDiagnostics(
+          new Error(data.body || "Agent stream error"),
+          "error"
+        );
       } else if (data.done) {
+        diagnostics.doneFrameCount += 1;
+        diagnostics.responseStatus = "completed";
+        diagnostics.requestCompletedAt = new Date().toISOString();
         cleanup();
-        resolve();
+        resolve({ status: "completed", diagnostics });
       }
     };
 
     const onClose = () => {
       cleanup();
-      reject(new Error("Agent WebSocket 在 turn 完成前关闭"));
+      rejectWithDiagnostics(
+        new Error("Agent WebSocket 在 turn 完成前关闭"),
+        "closed"
+      );
     };
 
     const cleanup = () => {
@@ -312,9 +372,77 @@ function waitForTurn(agent, requestId, messages, timeoutMs) {
   });
 }
 
-async function getMessages(base, agentName) {
+function createStreamDiagnostics() {
+  return {
+    responseStatus: "not_completed",
+    matchingFrameCount: 0,
+    doneFrameCount: 0,
+    errorFrameCount: 0,
+    malformedFrameCount: 0,
+    uiChunkTypeCounts: {},
+    uiFinishSeen: false,
+    uiFinishReason: null,
+    requestCompletedAt: null
+  };
+}
+
+function inspectUiBody(body, diagnostics) {
+  if (body === undefined || body === null || body === "") return;
+  if (typeof body !== "string") {
+    diagnostics.malformedFrameCount += 1;
+    return;
+  }
+
+  const trimmedBody = body.trim();
+  let candidates;
+  try {
+    JSON.parse(trimmedBody);
+    candidates = [trimmedBody];
+  } catch {
+    candidates = body
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trim())
+      .filter((line) => line !== "" && line !== "[DONE]");
+  }
+
+  if (candidates.length === 0) {
+    if (body.trim() !== "" && body.trim() !== "[DONE]") {
+      diagnostics.malformedFrameCount += 1;
+    }
+    return;
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const chunk = JSON.parse(candidate);
+      if (
+        !chunk ||
+        typeof chunk !== "object" ||
+        typeof chunk.type !== "string"
+      ) {
+        diagnostics.malformedFrameCount += 1;
+        continue;
+      }
+      diagnostics.uiChunkTypeCounts[chunk.type] =
+        (diagnostics.uiChunkTypeCounts[chunk.type] ?? 0) + 1;
+      if (chunk.type === "finish") {
+        diagnostics.uiFinishSeen = true;
+        if (typeof chunk.finishReason === "string") {
+          diagnostics.uiFinishReason = chunk.finishReason;
+        }
+      }
+    } catch {
+      diagnostics.malformedFrameCount += 1;
+    }
+  }
+}
+
+async function getMessages(base, agentName, timeoutMs = null) {
   const response = await fetch(
-    `${base}/agents/chat-agent/${encodeURIComponent(agentName)}/get-messages`
+    `${base}/agents/chat-agent/${encodeURIComponent(agentName)}/get-messages`,
+    timeoutMs === null ? undefined : { signal: AbortSignal.timeout(timeoutMs) }
   );
   if (!response.ok) {
     throw new Error(
@@ -324,6 +452,183 @@ async function getMessages(base, agentName) {
   const messages = await response.json();
   if (!Array.isArray(messages)) throw new Error("get-messages 未返回消息数组");
   return messages;
+}
+
+function createPersistenceDiagnostics() {
+  return {
+    pollingAttempts: 0,
+    pollingElapsedMs: 0,
+    completionCriterion: "not_observed",
+    assistantChangedDuringPolling: false,
+    firstAssistantObservedAt: null,
+    finalAnswerExtractedAt: null,
+    pollSnapshots: []
+  };
+}
+
+async function observePersistence(base, agentName, userMessageId) {
+  const startedAt = Date.now();
+  const diagnostics = createPersistenceDiagnostics();
+  let messages = [];
+  let previousComparable = null;
+  let stableConsecutiveCount = 0;
+
+  while (diagnostics.pollSnapshots.length < MAX_POLL_SNAPSHOTS) {
+    const remainingBeforeGet =
+      PERSISTENCE_OBSERVATION_WINDOW_MS - (Date.now() - startedAt);
+    if (remainingBeforeGet <= 0) {
+      diagnostics.completionCriterion = "observation_window_elapsed";
+      break;
+    }
+    try {
+      messages = await getMessages(base, agentName, remainingBeforeGet);
+    } catch (error) {
+      if (error?.name === "TimeoutError") {
+        diagnostics.completionCriterion = "observation_window_elapsed";
+        break;
+      }
+      throw error;
+    }
+    const assistant = findAssistantMessageForUser(messages, userMessageId);
+    const assistantSummary = summarizeAssistantMessage(assistant);
+    const elapsedMs = Date.now() - startedAt;
+    diagnostics.pollingAttempts += 1;
+    diagnostics.pollingElapsedMs = elapsedMs;
+    diagnostics.pollSnapshots.push({
+      elapsedMs,
+      messageCount: messages.length,
+      assistantSummary
+    });
+
+    if (
+      assistantSummary.found &&
+      diagnostics.firstAssistantObservedAt === null
+    ) {
+      diagnostics.firstAssistantObservedAt = elapsedMs;
+    }
+
+    const comparable = JSON.stringify(assistantSummary);
+    if (previousComparable !== null) {
+      if (comparable === previousComparable) stableConsecutiveCount += 1;
+      else {
+        diagnostics.assistantChangedDuringPolling = true;
+        stableConsecutiveCount = 0;
+      }
+    }
+    previousComparable = comparable;
+
+    if (assistantSummary.found && hasExplicitTerminalState(assistant)) {
+      diagnostics.completionCriterion = "explicit_terminal_state";
+      break;
+    }
+    if (
+      assistantSummary.found &&
+      diagnostics.pollingAttempts >= 2 &&
+      stableConsecutiveCount >= 1
+    ) {
+      diagnostics.completionCriterion = "stable_assistant_summary";
+      break;
+    }
+    if (elapsedMs >= PERSISTENCE_OBSERVATION_WINDOW_MS) {
+      diagnostics.completionCriterion = "observation_window_elapsed";
+      break;
+    }
+
+    const remainingMs = PERSISTENCE_OBSERVATION_WINDOW_MS - elapsedMs;
+    await delay(
+      Math.min(PERSISTENCE_POLL_INTERVAL_MS, Math.max(0, remainingMs))
+    );
+  }
+
+  if (diagnostics.completionCriterion === "not_observed") {
+    diagnostics.completionCriterion = "max_poll_snapshots";
+  }
+  diagnostics.pollingElapsedMs = Date.now() - startedAt;
+  diagnostics.finalAnswerExtractedAt = new Date().toISOString();
+  return { messages, diagnostics };
+}
+
+function summarizeAssistantMessage(message) {
+  const found = Boolean(message && message.role === "assistant");
+  const parts = found && Array.isArray(message.parts) ? message.parts : [];
+  const partTypes = parts.map((part) =>
+    typeof part?.type === "string" ? part.type : "unknown"
+  );
+  const partTypeCounts = Object.create(null);
+  const textPartLengths = [];
+  const textPartStates = [];
+  let totalTextLength = 0;
+  let combinedText = "";
+  let reasoningPartCount = 0;
+  let toolPartCount = 0;
+  let otherPartCount = 0;
+
+  for (const [index, part] of parts.entries()) {
+    const type = partTypes[index];
+    partTypeCounts[type] = (partTypeCounts[type] ?? 0) + 1;
+    if (type === "text") {
+      const length = typeof part?.text === "string" ? part.text.length : 0;
+      textPartLengths.push(length);
+      textPartStates.push(typeof part?.state === "string" ? part.state : null);
+      totalTextLength += length;
+      combinedText += `${combinedText === "" ? "" : "\n"}${
+        typeof part?.text === "string" ? part.text : ""
+      }`;
+    } else if (type === "reasoning" || type.startsWith("reasoning-")) {
+      reasoningPartCount += 1;
+    } else if (isToolPartType(type)) {
+      toolPartCount += 1;
+    } else {
+      otherPartCount += 1;
+    }
+  }
+
+  return {
+    found,
+    id: found && typeof message.id === "string" ? message.id : null,
+    role: found ? message.role : null,
+    partCount: parts.length,
+    partTypes,
+    partTypeCounts,
+    textPartCount: textPartLengths.length,
+    textPartLengths,
+    totalTextLength,
+    trimmedCombinedTextLength: combinedText.trim().length,
+    textPartStates,
+    reasoningPartCount,
+    toolPartCount,
+    otherPartCount,
+    finishReason: extractFinishReason(message)
+  };
+}
+
+function isToolPartType(type) {
+  return type === "dynamic-tool" || type.startsWith("tool-");
+}
+
+function extractFinishReason(message) {
+  const finishReason = message?.metadata?.finishReason;
+  return typeof finishReason === "string" ? finishReason : null;
+}
+
+function hasExplicitTerminalState(message) {
+  if (extractFinishReason(message) !== null) return true;
+  if (!message || !Array.isArray(message.parts)) return false;
+  const statefulParts = message.parts.filter(
+    (part) => typeof part?.state === "string"
+  );
+  if (statefulParts.length === 0) return false;
+  const terminalStates = new Set([
+    "done",
+    "output-available",
+    "output-error",
+    "approval-denied"
+  ]);
+  return statefulParts.every((part) => terminalStates.has(part.state));
+}
+
+function delay(milliseconds) {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
 }
 
 function findAssistantMessageForUser(messages, userMessageId) {
@@ -366,6 +671,132 @@ function extractFinalAnswer(message) {
     .map((part) => part.text)
     .join("\n")
     .trim();
+}
+
+async function runSelfTests() {
+  const secretText = "fixture-visible-secret";
+  const secretReasoning = "fixture-reasoning-secret";
+  const stepOnly = {
+    id: "assistant-step",
+    role: "assistant",
+    parts: [{ type: "step-start" }]
+  };
+  const emptyText = {
+    id: "assistant-empty",
+    role: "assistant",
+    parts: [{ type: "text", text: "", state: "streaming" }]
+  };
+  const nonEmptyText = {
+    id: "assistant-text",
+    role: "assistant",
+    parts: [{ type: "text", text: secretText, state: "done" }],
+    metadata: { finishReason: "stop", providerMetadata: { forbidden: true } }
+  };
+  const reasoningOnly = {
+    id: "assistant-reasoning",
+    role: "assistant",
+    parts: [{ type: "reasoning", text: secretReasoning }]
+  };
+
+  assertSelfTest(extractFinalAnswer(stepOnly) === "", "step-start only");
+  assertSelfTest(extractFinalAnswer(emptyText) === "", "empty text part");
+  assertSelfTest(
+    extractFinalAnswer(nonEmptyText) === secretText,
+    "non-empty text part"
+  );
+  assertSelfTest(
+    extractFinalAnswer(reasoningOnly) === "",
+    "reasoning is not final answer"
+  );
+
+  const emptySummary = summarizeAssistantMessage(emptyText);
+  const nonEmptySummary = summarizeAssistantMessage(nonEmptyText);
+  assertSelfTest(
+    JSON.stringify(emptySummary) !== JSON.stringify(nonEmptySummary),
+    "polling summaries detect empty-to-non-empty change"
+  );
+  const serializedDiagnostics = JSON.stringify({
+    assistantSummary: nonEmptySummary,
+    reasoningSummary: summarizeAssistantMessage(reasoningOnly),
+    pollSnapshots: [
+      { elapsedMs: 0, assistantSummary: emptySummary },
+      { elapsedMs: 200, assistantSummary: nonEmptySummary }
+    ]
+  });
+  assertSelfTest(
+    !serializedDiagnostics.includes(secretText) &&
+      !serializedDiagnostics.includes(secretReasoning) &&
+      !serializedDiagnostics.includes("providerMetadata"),
+    "diagnostics omit text, reasoning, and provider metadata payloads"
+  );
+
+  const uiDiagnostics = createStreamDiagnostics();
+  inspectUiBody(
+    'data: {"type":"start-step"}\n\ndata: {"type":"finish","finishReason":"stop"}\n\ndata: [DONE]',
+    uiDiagnostics
+  );
+  assertSelfTest(
+    uiDiagnostics.uiChunkTypeCounts["start-step"] === 1 &&
+      uiDiagnostics.uiFinishSeen &&
+      uiDiagnostics.uiFinishReason === "stop",
+    "SSE UI chunks"
+  );
+  inspectUiBody("malformed fixture body", uiDiagnostics);
+  assertSelfTest(
+    uiDiagnostics.malformedFrameCount === 1,
+    "malformed UI diagnostics"
+  );
+
+  const fakeAgent = new EventTarget();
+  fakeAgent.send = () => {
+    queueMicrotask(() => {
+      fakeAgent.dispatchEvent(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            type: "cf_agent_use_chat_response",
+            id: "fixture-request",
+            body: "malformed diagnostic body",
+            error: true
+          })
+        })
+      );
+    });
+  };
+  let transportError = null;
+  try {
+    await waitForTurn(fakeAgent, "fixture-request", [], 1000);
+  } catch (error) {
+    transportError = messageOf(error);
+  }
+  assertSelfTest(
+    transportError === "malformed diagnostic body",
+    "malformed diagnostics preserve transport error"
+  );
+
+  const oldRaw = JSON.parse(
+    await readFile(
+      new URL(
+        "../runs_raw/2026-08-19T05-47-25-841Z_REL-015.json",
+        import.meta.url
+      ),
+      "utf8"
+    )
+  );
+  assertSelfTest(
+    oldRaw.diagnostics === undefined,
+    "old raw has no diagnostics"
+  );
+  const oldCase = cases.find((item) => item.id === oldRaw.caseId);
+  assertSelfTest(
+    evaluateRun(oldCase, oldRaw).verdict === "FAIL",
+    "old raw evaluates"
+  );
+
+  console.log("Reliability runner self-test 通过；未建立网络连接。 ");
+}
+
+function assertSelfTest(condition, label) {
+  if (!condition) throw new Error(`Self-test failed: ${label}`);
 }
 
 function evaluateRun(testCase, run) {

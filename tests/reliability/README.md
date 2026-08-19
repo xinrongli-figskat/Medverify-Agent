@@ -71,6 +71,22 @@ node scripts/run-reliability.mjs --evaluate-run runs_raw/<run-file>.json
 
 离线重评使用当前 case 规则，不连接服务器、不调用模型或 PubMed，也不修改原始 `runs_raw` JSON。旧 run 的原始 verdict 会保留在原文件中，新规则的结果只打印到终端。
 
+## Output completion diagnostics
+
+未来 live run 可包含 `diagnostics.version: 1`，用于记录同一次 turn 的 WebSocket/UI stream 完成信号和完成后的持久化观察。它只保存 chunk type、计数、时间、assistant part 类型/计数/state 与文本长度，不保存 text 或 reasoning 正文，也不复制整个 metadata、`providerMetadata`、hidden prompt 或 chain-of-thought；metadata 只允许读取明确的 `finishReason`。Tool 在摘要中只计数，已允许的 Tool 审计仍由 `toolCalls` 提供。
+
+Runner 收到精确匹配 `requestId` 的 `done` 后立即读取消息，随后以 200ms 间隔、最多 5 秒和 26 个快照观察持久化摘要。这个 polling 只是对同一次已完成 turn 的 GET 观察，不发送第二次模型请求，也不是模型 retry；它不会等待回答变成非空、改写回答或产生 fallback。
+
+`completionCriterion` 表示停止原因：`explicit_terminal_state` 是明确 `finishReason` 或已知 terminal part state；`stable_assistant_summary` 是找到目标 assistant、至少额外 GET 一次且连续两次安全摘要一致；`observation_window_elapsed` 和 `max_poll_snapshots` 是两个硬边界；`not_observed` 仅是尚未开始观察的初始化值。旧 raw 可以没有 `diagnostics`，仍可离线重评且不会被回写。
+
+这些 diagnostics 只能帮助区分流、part 形态和持久化快照是否变化，不能单独证明 provider 根因，也不能证明回答医学正确。`final_answer_non_empty` 继续是最终用户可见回答的全局 hard assertion。
+
+本地零网络 fixture 检查可运行：
+
+```bash
+node scripts/run-reliability.mjs --self-test
+```
+
 ## 当前校验范围
 
 运行：

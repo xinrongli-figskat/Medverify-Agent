@@ -69,6 +69,13 @@
 - 新增全局 hard assertion `final_answer_non_empty`。REL-015 整体继续为 `FAIL`；FC-025、FC-026、FC-027 保持 `OPEN`，REG-012、REG-013、REG-014 保持 `FAIL`，等待产品侧空回答调查和稳定回归。
 - 本轮只增强 Harness、registry 和文档；raw run 保持原样，不修改生产代码。
 
+## M2.9E Output Completion Observability
+
+- M2.9E-A 静态审计确认：AI SDK UI stream 可产生 `start-step`；AIChatAgent 可持久化没有 text 的 assistant；`sendReasoning:false` 会过滤交给 UI stream 的 reasoning parts；`@cloudflare/ai-chat` 先广播 `done:true`、之后才等待持久化；旧 Runner 在 done 后只 GET 一次且只从 text parts 提取 `finalAnswer`。
+- 因此已有静态证据仍无法区分 provider 零 text、reasoning-only 后被过滤、持久化时序，以及只有 `step-start`/空 text part；这些是待区分的可能路径，不是已经动态观察到的产品根因。
+- M2.9E-B 为未来 live run 增加非敏感 stream 与 persistence telemetry：只记录 chunk/part 类型、计数、长度、state、明确 finish reason 和有界快照，不保存 text/reasoning 正文。done 后 polling 观察同一次 turn 的持久化，不是模型 retry。
+- 尚未进行受控动态复现，diagnostics 的存在不能视为 FC-027 根因已确定。FC-025、FC-026、FC-027 均保持 `OPEN`；REG-012、REG-013、REG-014 均保持 `FAIL`。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                                | 首次发现版本           | 来源 Run                         | 现象                                                               | 严重程度 | 当前状态        | 关联回归 Case                         |
@@ -507,6 +514,8 @@
 - 现象：失败 run 的 `messageCount=2`、`errors=[]`、Tool 调用 0 次、`toolErrors=[]`，但 `finalAnswer` 是空字符串。对照 run 在同一生产 commit 下生成非空回答并取得 `PASS_WITH_NOTE`。
 - 影响：用户得到空响应；如果 case 没有 `requiredOutputGroups`，旧 Harness 可能缺少通用捕获。
 - 当前 Harness 修复：新增对所有 case/run 生效的 `final_answer_non_empty` hard assertion；`finalAnswer` 必须为字符串且 trim 后长度大于 0，否则自动 `FAIL`。
+- M2.9E-A 静态审计：确认 UI stream/持久化顺序和 Runner 单次 GET 的观察缺口，但无法在四种候选路径间归因。不得将静态可能性描述为已观察到的产品 failure。
+- M2.9E-B Harness telemetry：未来 live run 会记录非敏感 UI chunk 统计、完成信号和最长 5 秒的持久化摘要快照；尚未受控复现本 failure，不改变产品结论。
 - 产品状态：OPEN。
 - 原因：尚未确定；可能涉及模型偶发空输出、流式响应提取或持久化链路。在没有产品代码证据前，不断言具体根因。
 - 对照证据边界：第二次回答未复现 `delay in heartbeat`，气道/呼吸和循环 required groups 通过，未输出 PMID 且 `pmid_citation_grounding` 通过；这只证明一次复跑成功，不能关闭间歇性 failure。
