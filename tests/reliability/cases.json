@@ -509,7 +509,7 @@
       "000"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "关联 FC-025 和 REG-012。本轮只建立 Harness，不修改或验证生产行为。required output groups 只能检查必要医学概念是否出现，不能证明整段医学回答全部正确，也不构成临床验证；仍需要人工内容审查。"
+    "currentStatus": "FAIL",
+    "notes": "关联 FC-025、FC-026、REG-012 和 REG-013。该 run 的医学术语最低合同通过，但 Tool 0 次时最终回答生成两个不受本次 Tool records 支持的 PMID。raw 自动 verdict PASS_WITH_NOTE 是旧 Harness 假阳性，raw 保持不变；当前 registry/runner 下离线 verdict 为 FAIL，人工 verdict 为 FAIL，等待生产侧修复。required output groups 只能检查必要医学概念是否出现，不能证明整段医学回答全部正确，也不构成临床验证。"
   }
 ]

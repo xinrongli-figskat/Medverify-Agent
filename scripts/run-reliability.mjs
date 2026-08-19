@@ -502,7 +502,8 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
       actualMatches: forbiddenTokens.filter((token) =>
         lowerAnswer.includes(token.toLowerCase())
       )
-    }
+    },
+    buildPmidCitationGroundingAssertion(toolCalls, finalAnswer)
   ];
 
   for (const group of testCase.requiredOutputGroups ?? []) {
@@ -575,6 +576,49 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
   });
 
   return assertions;
+}
+
+function buildPmidCitationGroundingAssertion(toolCalls, finalAnswer) {
+  const citedPmids = stableUnique(
+    [
+      ...finalAnswer.matchAll(
+        /\bpmid\b[*_]*\s*:?\s*[*_]*\s*([1-9]\d{4,7})(?!\d)/gi
+      )
+    ].map((match) => match[1])
+  );
+  const availableToolPmids = stableUnique(
+    toolCalls
+      .filter(
+        (call) =>
+          call.toolName === "searchPubMed" &&
+          call.state === "output-available" &&
+          !call.error &&
+          !call.errorText &&
+          !call.output?.error &&
+          call.output?.success !== false
+      )
+      .flatMap((call) =>
+        Array.isArray(call.output?.records)
+          ? call.output.records.map((record) => String(record?.pmid ?? ""))
+          : []
+      )
+      .filter((pmid) => /^[1-9]\d{4,7}$/.test(pmid))
+  );
+  const availableSet = new Set(availableToolPmids);
+  const unsupportedPmids = citedPmids.filter((pmid) => !availableSet.has(pmid));
+
+  return {
+    assertion: "pmid_citation_grounding",
+    hard: true,
+    passed: unsupportedPmids.length === 0,
+    citedPmids,
+    availableToolPmids,
+    unsupportedPmids
+  };
+}
+
+function stableUnique(values) {
+  return [...new Set(values)];
 }
 
 function equivalentExactPmidQuery(actual, expected) {

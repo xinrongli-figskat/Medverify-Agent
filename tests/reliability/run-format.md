@@ -36,6 +36,19 @@ node scripts/run-reliability.mjs --evaluate-run runs_raw/<run-file>.json
 
 离线模式只读取 run 和当前 `cases.json`，不连接服务器、不调用模型或 PubMed，也不修改原始 run。发现 hard failure 时退出码为 1。
 
+## PMID citation grounding assertion
+
+`pmid_citation_grounding` 是全局 hard assertion，不需要 case registry 单独启用。结果字段为：
+
+- `citedPmids`：从最终回答中明确带 `PMID` 标签的 5–8 位编号，按出现顺序去重。
+- `availableToolPmids`：仅从同一 run 的 `searchPubMed` Tool output `records[].pmid` 读取，按 Tool/record 顺序去重。
+- `unsupportedPmids`：`citedPmids` 中不存在于 `availableToolPmids` 的编号。
+- `passed`：仅当 `unsupportedPmids` 为空时为 true。
+
+没有 PMID citation 时 assertion 通过。Tool 调用为 0、Tool error 或 records 为空时，任何 PMID citation 都会失败。此 assertion 不使用用户输入、`expectedRecordPmids`、registry 预期、模型生成的标题、外部查询或其他 run 的 records。
+
+Grounding 通过只表示 PMID 出现在本次 Tool records 中，不能单独证明标题与 PMID 对应、DOI 正确、文章支持结论，或摘要/全文内容正确；这些仍需独立自动检查或人工证据审查。
+
 ## 字段
 
 - `runId`：时间戳和 Case ID 组成的唯一运行 ID。
