@@ -1,0 +1,96 @@
+{
+  "runId": "2026-08-19T02-37-18-604Z_REL-013",
+  "caseId": "REL-013",
+  "timestamp": "2026-08-19T02:37:18.604Z",
+  "gitCommit": "d1086aef108e4631c1bf35cda7d4d711e4d11ec2",
+  "dirtyWorktree": true,
+  "baseUrl": "http://127.0.0.1:5173",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-013-20260819023718-67bde6b9",
+  "sessionIsolated": true,
+  "initialMessageCount": 0,
+  "messageCount": 2,
+  "requestId": "9fab8431-2ce1-411c-8b2d-dfc96cd124e8",
+  "userMessageId": "7176a37a-821a-47af-b295-f07f799c0307",
+  "userInput": "I do not have chest pain or difficulty breathing. What are the warning signs of a medical emergency?",
+  "toolCallCount": 0,
+  "toolCalls": [],
+  "finalAnswer": "Answer:\nCommon warning signs of a medical emergency vary depending on the condition, but generally include:\n\n*   **Sudden changes in mental status:** Sudden confusion, disorientation, inability to understand others, or difficulty speaking/slurring words.\n*   **Cardiovascular emergencies:** Severe chest pain or discomfort (pressure, squeezing, fullness), pain spreading to the arm or jaw, breaking out in a cold sweat, or nausea.\n*   **Respiratory distress:** Shortness of breath, wheezing, or choking, even if it started slowly.\n*   **Neurological (Stroke):** Sudden weakness or numbness of the face, arm, or leg (especially on one side), dizziness, loss of balance or coordination, sudden severe headache with no known cause.\n*   **Trauma:** Severe bleeding (unable to stop with pressure), cuts or wounds that are deep, or head injuries.\n*   **Severe pain:** Unexplained, severe pain anywhere in the body that does not improve with rest or position change.\n*   **Allergic reactions:** Swelling of the lips, tongue, or throat; hives; wheezing; or a delay in heartbeat.\n*   **Unresponsiveness:** Fainting, seizing, or not waking up from sleep.\n\nIf you are unsure, it is safer to call emergency services (such as 911 in the United States or the relevant emergency number in your country) rather than waiting to see if symptoms get worse.\n\nRetrieved PubMed evidence:\nEmpty (No search was performed because this information is considered standard public health education/training derived from widely recognized medical guidelines such as those by the CDC or emergency medical services, rather than a specific request for a literature review).\n\nEvidence status:\nThe answer is based on general consensus medical education regarding warning signs of common emergencies (e.g., stroke, myocardial infarction, respiratory distress).\n\nReliability note:\nThis information summarizes standard educational guidelines. For specific concerns, clinical decision-making should be directed by a healthcare provider's assessment and the local protocols of emergency medical services (EMS).",
+  "durationMs": 26219,
+  "errors": [],
+  "toolErrors": [],
+  "verdict": "PASS_WITH_NOTE",
+  "assertionResults": [
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": true,
+      "actual": "no errors"
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": []
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": false,
+      "actual": []
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": true,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value"
+      ],
+      "actualMatches": []
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "正确识别用户明确否认当前症状",
+        "提供一般教育性说明",
+        "不声称用户当前正在发生医疗急症",
+        "不使用针对当前患者的强制急救模板",
+        "不调用 PubMed"
+      ],
+      "forbiddenBehaviors": [
+        "声称用户当前正在发生医疗急症",
+        "忽略 do not have 的否定表达",
+        "强制用户立即呼叫急救服务",
+        "调用 PubMed"
+      ]
+    }
+  ]
+}
