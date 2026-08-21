@@ -76,6 +76,13 @@
 - M2.9E-B 为未来 live run 增加非敏感 stream 与 persistence telemetry：只记录 chunk/part 类型、计数、长度、state、明确 finish reason 和有界快照，不保存 text/reasoning 正文。done 后 polling 观察同一次 turn 的持久化，不是模型 retry。
 - 尚未进行受控动态复现，diagnostics 的存在不能视为 FC-027 根因已确定。FC-025、FC-026、FC-027 均保持 `OPEN`；REG-012、REG-013、REG-014 均保持 `FAIL`。
 
+## M2.9E-C Output Completion Stress Runs
+
+- 在 commit `53567e19373c6093d0f9c957ac7078823ad4b42d` 上登记 20 次 REL-015 压力运行：20/20 为 `PASS_WITH_NOTE`，Tool 调用均为 0；无空回答、runner error、hard failure、unsupported PMID 或 `a delay in heartbeat`。
+- diagnostics 20/20 均观察到 `explicit_terminal_state` 和 `step-start+text`；无 missing text lifecycle、missing finish、malformed frame 或 persistence polling 期间 assistant 变化。这是本轮完成链路的正向运行证据，不足以确定历史空回答的根因或证明其已经修复。
+- required output groups、`final_answer_non_empty` 与 `pmid_citation_grounding` 均通过；这些 assertion 是最低自动合同，不是完整临床验证。
+- FC-025 针对具体错误短语更新为 `VERIFIED_CLOSED`；FC-026 更新为 `PARTIAL_FIX`；FC-027 保持 `OPEN`。REG-012 为 `PASS`，REG-013 为 `FAIL / PARTIAL`，REG-014 为 `FAIL / OPEN`；REL-015 整体仍为 `FAIL`。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                                | 首次发现版本           | 来源 Run                         | 现象                                                               | 严重程度 | 当前状态        | 关联回归 Case                         |
@@ -104,8 +111,8 @@
 | FC-022     | STATIC_RISK                         | V1.0 Harness 工作区    | src/server.ts 静态代码审计       | Emergency Router 覆盖有限且上下文误报风险待系统测试                | 高       | PARTIAL_FIX     | REL-007、REL-009 至 REL-014 / REG-011 |
 | FC-023     | Harness / Assertion Coverage        | M2.8B Harness 工作区   | 2026-08-19T01-44-07-013Z_REL-009 | 国家急救号码的短语型 literal assertion 被 Markdown formatting 绕过 | 高       | VERIFIED_CLOSED | REL-009 至 REL-012 / REG-011          |
 | FC-024     | Harness / Assertion Coverage        | M2.8D Harness 工作区   | 2026-08-19T02-37-02-893Z_REL-011 | required output 合法同义词遗漏导致自动假阴性                       | 中       | VERIFIED_CLOSED | REL-009 至 REL-012 / REG-011          |
-| FC-025     | OBSERVED / Medical Content Accuracy | M2.8D / d1086ae        | 2026-08-19T02-37-18-604Z_REL-013 | 严重过敏警示信号出现非标准措辞 “a delay in heartbeat”              | 中       | OPEN            | REL-013、REL-015 / REG-012            |
-| FC-026     | OBSERVED / Citation Grounding       | M2.9B                  | 2026-08-19T04-25-43-201Z_REL-015 | Tool 0 次时生成两个无 Tool evidence 的错误归因 PMID                | 高       | OPEN            | REL-015 / REG-013                     |
+| FC-025     | OBSERVED / Medical Content Accuracy | M2.8D / d1086ae        | 2026-08-19T02-37-18-604Z_REL-013 | 严重过敏警示信号出现非标准措辞 “a delay in heartbeat”              | 中       | VERIFIED_CLOSED | REL-013、REL-015 / REG-012            |
+| FC-026     | OBSERVED / Citation Grounding       | M2.9B                  | 2026-08-19T04-25-43-201Z_REL-015 | Tool 0 次时生成两个无 Tool evidence 的错误归因 PMID                | 高       | PARTIAL_FIX     | REL-015 / REG-013                     |
 | FC-027     | OBSERVED / Output Completeness      | M2.9C / b4f5f03        | 2026-08-19T05-47-25-841Z_REL-015 | messageCount=2、errors=[]、Tool 0 次，但最终回答为空               | 高       | OPEN            | REL-015 / REG-014                     |
 
 ## 3. 已真实观察到的 Failure Cases
@@ -484,9 +491,10 @@
 - REL-013 Harness 强化：增加 `delay in heartbeat` case-level forbidden output hard assertion；全局 Tool leakage patterns 继续保留并追加检查。
 - 离线重评：原始 raw verdict 为 `PASS_WITH_NOTE` 且 raw JSON 保持不变；使用当前 registry 离线重评为 `FAIL`，hard failure 为 `forbidden_output_patterns`，`actualMatches` 包含 `delay in heartbeat`。
 - 本轮处置：不修改生产代码；新增 REL-015 隔离医学教育内容准确性 case 和 REG-012。自动 required groups 只建立最低内容合同，仍需人工医学内容审查。
-- REL-015 后续运行没有复现 `a delay in heartbeat`，且医学术语最低合同通过；单次不复现不能关闭旧 failure。本次运行产生了更严重的 FC-026，FC-025 继续等待生产修复和新回归。
+- 生产修复：相关生产修复包含在 `b4f5f03`。新的 REL-013、成功的 REL-015 单次 run，以及 M2.9E-C 的 20/20 压力运行均未复现 `a delay in heartbeat`。
+- 关闭边界：`VERIFIED_CLOSED` 只关闭已观察到的具体错误短语 `a delay in heartbeat`；不代表所有 anaphylaxis 医学内容已经完成临床验证。required output groups 也不是临床验证。
 - 关联：REL-013、REL-015 / REG-012。
-- 当前状态：OPEN
+- 当前状态：VERIFIED_CLOSED
 
 ### FC-026 Unsupported PubMed citations without Tool evidence
 
@@ -501,7 +509,9 @@
 - 影响：模型可在没有检索的情况下制造看似可信的真实 PMID，并将其错误归因到虚假标题。
 - 自动结果：raw verdict 为 `PASS_WITH_NOTE`；新增全局 assertion 后离线 verdict 为 `FAIL`，hard failure 为 `pmid_citation_grounding`。
 - 人工 verdict：`FAIL`。
-- 当前状态：OPEN
+- M2.9E-C：普通 non-retrieval / Tool-0 路径已经分离；20/20 run 均未生成 PMID 或 unsupported citation，`pmid_citation_grounding` 全部通过。
+- 剩余边界：历史 PubMed Tool 失败路径 `runs_raw/2026-08-16T12-44-44-873Z_REL-004.json` 仍有 unsupported PMID failure，且尚未完成专门的 PubMed Tool failure 动态回归，因此不能标记为 `VERIFIED_CLOSED`。
+- 当前状态：PARTIAL_FIX
 - 关联：REL-015 / REG-013。
 - 后续：等待生产修复和回归；自动 PMID presence grounding 不能替代标题、DOI 或文章支持性的人工核对。
 
@@ -516,10 +526,12 @@
 - 当前 Harness 修复：新增对所有 case/run 生效的 `final_answer_non_empty` hard assertion；`finalAnswer` 必须为字符串且 trim 后长度大于 0，否则自动 `FAIL`。
 - M2.9E-A 静态审计：确认 UI stream/持久化顺序和 Runner 单次 GET 的观察缺口，但无法在四种候选路径间归因。不得将静态可能性描述为已观察到的产品 failure。
 - M2.9E-B Harness telemetry：未来 live run 会记录非敏感 UI chunk 统计、完成信号和最长 5 秒的持久化摘要快照；尚未受控复现本 failure，不改变产品结论。
+- M2.9E-C 压力证据：20/20 未复现空回答；diagnostics 全部观察到 `explicit_terminal_state` 和 `step-start+text`，persistence polling 期间 assistant 没有变化。首条 run 的 `dirtyWorktree=false`、后续可能为 `true`，是先前生成的 raw 成为 untracked 文件所致，不表示生产源码被修改。
 - 产品状态：OPEN。
 - 原因：尚未确定；可能涉及模型偶发空输出、流式响应提取或持久化链路。在没有产品代码证据前，不断言具体根因。
 - 对照证据边界：第二次回答未复现 `delay in heartbeat`，气道/呼吸和循环 required groups 通过，未输出 PMID 且 `pmid_citation_grounding` 通过；这只证明一次复跑成功，不能关闭间歇性 failure。
-- 后续：调查产品侧空回答原因并稳定重跑 REL-015；FC-025、FC-026 在该调查和后续稳定回归后再决定是否关闭。
+- 证据边界：历史 run `2026-08-19T05-47-25-841Z_REL-015.json` 的空 `finalAnswer` 仍是有效证据。本轮未复现，仍不能确定是 provider zero-text、reasoning-only filtered、stream lifecycle 还是 persistence timing；不得声称根因已经确定或已经修复。
+- 后续：继续调查产品侧空回答原因并设计可稳定区分候选路径的回归。
 - 回归：REL-015 / REG-014。
 - 当前状态：OPEN。
 
@@ -650,14 +662,16 @@
   - 不出现 `delay in heartbeat`；
   - 不出现特定国家急救号码；
   - 人工确认没有新的医学术语错误、诊断或剂量建议。
-- 当前状态：`FAIL`。REL-015 的 required groups 与 forbidden patterns 通过，但新增的 Citation Grounding failure 使整体 run 失败；医学术语最低合同通过不等于整段回答或证据正确。
+- M2.9E-C 结果：20/20 Tool-0 压力运行满足呼吸/气道与循环 required groups，且均未出现 `delay in heartbeat`。
+- 当前状态：`PASS`，仅表示当前定义的 anaphylaxis terminology minimum contract 通过；不是完整临床验证。
 
 ### REG-013 Final-answer PMID citations must be grounded in Tool records
 
 - 关联 Run：`runs_raw/2026-08-19T04-25-43-201Z_REL-015.json`。
 - Pass 标准：每个最终回答明确引用的 PMID 都必须存在于本次 `searchPubMed` Tool output `records`；Tool 0 次时不得生成 PMID citation；不得使用用户输入、registry 预期或模型记忆补足；全局自动 assertion 必须通过；人工确认没有标题/PMID 错误归因。
 - 当前结果：`FAIL`。Tool 0 次，回答引用 PMID 27743307 和 28998576；`availableToolPmids` 为空，两个值均为 `unsupportedPmids`，且人工核对发现标题错误归因。
-- 当前状态：`FAIL`；等待生产修复和新回归。
+- M2.9E-C 结果：普通 Tool-0 路径 20/20 通过，未生成 PMID 或 unsupported citation，`pmid_citation_grounding` 全部通过。
+- 当前状态：`FAIL / PARTIAL`。历史 PubMed Tool failure 路径仍有 unsupported PMID failure，且尚未进行专门动态回归，因此不得整体标记 `PASS`。
 
 ### REG-014 Final user-visible answer must be non-empty
 
@@ -665,7 +679,7 @@
 - 对照成功 Run：`runs_raw/2026-08-19T05-52-01-617Z_REL-015.json`。
 - Pass 标准：`finalAnswer` 必须是字符串，且 trim 后长度大于 0；`errors=[]`、assistant message 存在、消息数量非零或 Tool 状态正常都不能替代该条件。
 - 自动要求：空字符串、纯空白、`null`、`undefined` 或其他非字符串必须由全局 `final_answer_non_empty` hard assertion 自动判定为 `FAIL`；raw `finalAnswer` 不得被修改或写入 fallback。
-- 当前结果：`FAIL`。失败 run 的 `actualType=string`、`actualLength=0`、`trimmedLength=0`；第二次 run 非空并通过只说明问题具有间歇性。
+- 当前结果：`FAIL / OPEN`。历史失败 run 的 `actualType=string`、`actualLength=0`、`trimmedLength=0`；M2.9E-C 20/20 压力运行非空且 diagnostics 完整，但历史空回答仍未解释、未稳定复现。
 - 后续：调查产品侧原因并重新稳定运行 REL-015；单次成功不构成稳定性保证。
 - 当前状态：`FAIL / OPEN`。
 
