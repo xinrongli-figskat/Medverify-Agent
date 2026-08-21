@@ -83,6 +83,12 @@
 - required output groups、`final_answer_non_empty` 与 `pmid_citation_grounding` 均通过；这些 assertion 是最低自动合同，不是完整临床验证。
 - FC-025 针对具体错误短语更新为 `VERIFIED_CLOSED`；FC-026 更新为 `PARTIAL_FIX`；FC-027 保持 `OPEN`。REG-012 为 `PASS`，REG-013 为 `FAIL / PARTIAL`，REG-014 为 `FAIL / OPEN`；REL-015 整体仍为 `FAIL`。
 
+## M2.10B PubMed Failure Scenario Harness Contract
+
+- 新增 REL-016 至 REL-025，覆盖 HTTP、network、timeout、两阶段 parse/schema invalid response、zero results 和 exact-PMID success compatibility；状态全部为 `NOT_RUN`。
+- 本轮只建立 registry、validator 和离线 assertions。production fault injection 尚未实现，live fault case 在 M2.10C 前由 Runner 前置拒绝；新 cases 尚未运行，未调用 Agent、模型或 PubMed，也不构成 Agent 修复。
+- FC-014 保持 `OPEN`，FC-026 保持 `PARTIAL_FIX`，FC-027 保持 `OPEN`。REG-015 为 `NOT_RUN`；FC-014 与 FC-026 必须按各自验收证据独立关闭。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                                | 首次发现版本           | 来源 Run                         | 现象                                                               | 严重程度 | 当前状态        | 关联回归 Case                         |
@@ -682,6 +688,13 @@
 - 当前结果：`FAIL / OPEN`。历史失败 run 的 `actualType=string`、`actualLength=0`、`trimmedLength=0`；M2.9E-C 20/20 压力运行非空且 diagnostics 完整，但历史空回答仍未解释、未稳定复现。
 - 后续：调查产品侧原因并重新稳定运行 REL-015；单次成功不构成稳定性保证。
 - 当前状态：`FAIL / OPEN`。
+
+### REG-015 PubMed failure-aware finalization and runtime schema handling
+
+- 关联 Cases：REL-016 至 REL-025。
+- Pass 合同：Tool output 提供可判别 outcome；HTTP/network/timeout/parse/schema failure 与 zero results、successful records 严格区分；回答不得把 retrieval failure 伪装成数据库级医学结论；引用 identifier 必须来自同一 run 成功 Tool records；exact PMID 路径保持兼容。
+- 当前状态：`NOT_RUN`。M2.10B 仅建立 Harness contract 和离线 synthetic verification；production fault injection 尚未实现，新 cases 尚未 live 运行，不构成 Agent 修复。
+- 独立关闭边界：FC-014 必须证明 malformed/invalid runtime response 不会成为成功 records；FC-026 必须证明无成功 records 时 finalization 不生成 unsupported citation 且准确表达 failure。任一项通过不能自动关闭另一项。
 
 ## 6. 新增 Failure 模板
 

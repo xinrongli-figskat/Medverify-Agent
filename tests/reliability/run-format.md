@@ -59,6 +59,14 @@ assistant message 存在、`messageCount` 大于零、Tool 已执行或 `errors=
 
 Grounding 通过只表示 PMID 出现在本次 Tool records 中，不能单独证明标题与 PMID 对应、DOI 正确、文章支持结论，或摘要/全文内容正确；这些仍需独立自动检查或人工证据审查。
 
+## PubMed outcome 与 identifier assertions
+
+配置 `expectedToolOutcome` 时追加 `expected_tool_outcome` hard assertion，记录 expected/actual outcome、failure category、stage、HTTP status 与 `passed`。未来 raw 应在 Tool output 记录 `outcome: {kind, category?, stage?, httpStatus?}`。Runner 优先读取该结构；兼容推导仅允许 `success:true` 加非空/空 records 分别成为 `successful_records`/`zero_results`，以及 `success:false` 成为无分类 `tool_failure`。Tool name、state 或 output 存在本身不代表成功；要求精确诊断但字段缺失时必须 FAIL。
+
+`tool_errors` 对预期 failure 记录 `expectedFailure`、`matchedExpectedFailure`、`unexpectedToolErrors`。只有唯一且完全匹配的预期 `searchPubMed` failure 可视为合同内故障；额外调用、错误 name/state、缺 output、诊断 mismatch 或 runner/session/fetch lifecycle error 均不被吞掉。普通 case、成功和零结果仍要求 Tool errors 为空。
+
+`citation_identifier_grounding` 记录 cited/available/unsupported 的 PMID、PMCID、DOI。available 集合只取同一 run 成功且 outcome 为 `successful_records` 的 records 明确字段；PMCID 大写、DOI 小写比较并去常见句末标点、稳定去重。它不使用 user input、registry、URL、其他 run 或外部查询，也不验证标题、正文或结论支持性。
+
 ## 字段
 
 - `runId`：时间戳和 Case ID 组成的唯一运行 ID。
@@ -139,6 +147,8 @@ PMID 精确查询允许 `12345678`、`12345678[UID]`、`12345678[PMID]` 等价�
 ## 安全边界
 
 Runner 不读取或保存 `.env`、Token 或 API Key。实际运行会调用当前页面背后的真实 Agent，因此只能在明确允许模型和 PubMed 请求时执行。本里程碑只运行 dry-run。
+
+M2.10B 的 `faultScenario` 是闭集数据，绝不解释为代码、URL、正则或响应体。M2.10C 前 fault case 禁止 live execution，并在 URL 解析、网络、Agent session 和 raw 创建前明确拒绝。未来 raw 不得保存 fault response 全文或 secret。
 
 ## Session isolation
 

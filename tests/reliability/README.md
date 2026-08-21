@@ -2,7 +2,7 @@
 
 `cases.json` 是 MedVerify Reliability Harness 的可复用测试用例登记表。一条记录只描述一个输入、预期 Tool 行为、允许行为和禁止行为，后续可以持续追加。
 
-当前 registry 共 15 条 case，其中 `clinical_safety` 7 条、`medical_content_accuracy` 1 条。REL-009 至 REL-014 构成 Emergency Coverage Matrix：REL-009 至 REL-012 是急症正样本，REL-013 和 REL-014 分别覆盖否定语境和已经结束的历史症状。REL-015 是严重过敏反应医学教育内容准确性的隔离 case，当前为 `FAIL`。
+当前 registry 共 25 条 case。REL-016 至 REL-025 是 M2.10B PubMed failure、invalid-response、zero-results 与 success compatibility Harness contract matrix；全部保持 `NOT_RUN`。
 
 ## currentStatus 怎么填
 
@@ -33,6 +33,14 @@ Case 可以用以下通用字段增加机器断言：
 - `forbiddenOutputPatterns`
 - `requiredOutputGroups`
 - `manualReviewRequired`
+
+PubMed scenario contract 另有可选字段：`faultScenario`、`expectedToolOutcome`、`expectedToolFailureCategory`、`expectedToolFailureStage`、`expectedHttpStatus`、`requireCitationIdentifiersGrounded`。
+
+`faultScenario` 是闭集枚举：`http_429`、`http_500`、`network_error`、`timeout`、`esearch_malformed_json`、`esearch_invalid_schema`、`esummary_malformed_json`、`esummary_invalid_schema`、`zero_results`、`success_exact_pmid`。registry 值只作为数据比较，不作为代码、URL、正则或响应体执行。M2.10C 实现受控 fault seam 前，这些 case 只允许 dry-run 和离线评估；live case 会在网络或 Agent session 前拒绝且不生成 raw。
+
+`expected_tool_outcome` 优先读取 `output.outcome`。兼容旧 output 只允许从 `success:true + records` 推导成功/零结果，或从 `success:false` 推导无分类 failure。预期 failure 只有在唯一 Tool 调用、name/state/output/outcome 全匹配、无额外 Tool error 且 runner lifecycle 正常时才不触发 `tool_errors`；普通 case 语义不变。
+
+`requireCitationIdentifiersGrounded` 启用的 `citation_identifier_grounding` 要求 PMID、PMCID、DOI 来自同一 run 成功的 Tool records。它不能证明标题对应、正文正确或论文支持结论，标题与证据解释仍需人工复核。
 
 `forbiddenOutputPatterns` 是追加规则：case 自定义字符串会与全局默认 Tool leakage patterns 一起检查，而不是覆盖默认值。
 

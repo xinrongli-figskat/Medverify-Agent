@@ -20,6 +20,54 @@ const requiredFields = [
 
 const errors = [];
 let cases;
+const faultScenarios = new Set([
+  "http_429",
+  "http_500",
+  "network_error",
+  "timeout",
+  "esearch_malformed_json",
+  "esearch_invalid_schema",
+  "esummary_malformed_json",
+  "esummary_invalid_schema",
+  "zero_results",
+  "success_exact_pmid"
+]);
+const toolOutcomes = new Set([
+  "tool_failure",
+  "invalid_response",
+  "zero_results",
+  "successful_records"
+]);
+const failureCategories = new Set([
+  "http_error",
+  "network_error",
+  "timeout",
+  "parse_error",
+  "schema_error"
+]);
+const failureStages = new Set(["esearch", "esummary"]);
+const scenarioContracts = {
+  http_429: ["tool_failure", "http_error", "esearch", 429],
+  http_500: ["tool_failure", "http_error", "esearch", 500],
+  network_error: ["tool_failure", "network_error", "esearch", null],
+  timeout: ["tool_failure", "timeout", "esearch", null],
+  esearch_malformed_json: ["invalid_response", "parse_error", "esearch", null],
+  esearch_invalid_schema: ["invalid_response", "schema_error", "esearch", null],
+  esummary_malformed_json: [
+    "invalid_response",
+    "parse_error",
+    "esummary",
+    null
+  ],
+  esummary_invalid_schema: [
+    "invalid_response",
+    "schema_error",
+    "esummary",
+    null
+  ],
+  zero_results: ["zero_results", null, null, null],
+  success_exact_pmid: ["successful_records", null, null, null]
+};
 
 try {
   const raw = await readFile(casesUrl, "utf8");
@@ -126,6 +174,136 @@ for (const [index, item] of cases.entries()) {
       ))
   ) {
     errors.push(`${label}：expectedRecordPmids 必须是非空字符串数组。`);
+  }
+
+  if (
+    item.faultScenario !== undefined &&
+    !faultScenarios.has(item.faultScenario)
+  ) {
+    errors.push(`${label}：faultScenario 不在允许枚举中。`);
+  }
+  if (
+    item.expectedToolOutcome !== undefined &&
+    !toolOutcomes.has(item.expectedToolOutcome)
+  ) {
+    errors.push(`${label}：expectedToolOutcome 不在允许枚举中。`);
+  }
+  if (
+    item.expectedToolFailureCategory !== undefined &&
+    !failureCategories.has(item.expectedToolFailureCategory)
+  ) {
+    errors.push(`${label}：expectedToolFailureCategory 不在允许枚举中。`);
+  }
+  if (
+    item.expectedToolFailureStage !== undefined &&
+    !failureStages.has(item.expectedToolFailureStage)
+  ) {
+    errors.push(`${label}：expectedToolFailureStage 不在允许枚举中。`);
+  }
+  if (
+    item.expectedHttpStatus !== undefined &&
+    (!Number.isInteger(item.expectedHttpStatus) ||
+      item.expectedHttpStatus < 100 ||
+      item.expectedHttpStatus > 599)
+  ) {
+    errors.push(`${label}：expectedHttpStatus 必须是 100 至 599 的整数。`);
+  }
+  if (
+    item.requireCitationIdentifiersGrounded !== undefined &&
+    typeof item.requireCitationIdentifiersGrounded !== "boolean"
+  ) {
+    errors.push(`${label}：requireCitationIdentifiersGrounded 必须是布尔值。`);
+  }
+  if (
+    ["zero_results", "successful_records"].includes(item.expectedToolOutcome)
+  ) {
+    for (const field of [
+      "expectedToolFailureCategory",
+      "expectedToolFailureStage",
+      "expectedHttpStatus"
+    ]) {
+      if (item[field] !== undefined)
+        errors.push(
+          `${label}：${item.expectedToolOutcome} 不允许配置 ${field}。`
+        );
+    }
+  }
+  if (
+    item.expectedToolFailureCategory !== undefined &&
+    !["tool_failure", "invalid_response"].includes(item.expectedToolOutcome)
+  ) {
+    errors.push(`${label}：failure category 与 expectedToolOutcome 矛盾。`);
+  }
+  if (
+    item.expectedToolFailureStage !== undefined &&
+    !["tool_failure", "invalid_response"].includes(item.expectedToolOutcome)
+  ) {
+    errors.push(`${label}：failure stage 与 expectedToolOutcome 矛盾。`);
+  }
+  if (
+    item.expectedHttpStatus !== undefined &&
+    item.expectedToolFailureCategory !== "http_error"
+  ) {
+    errors.push(`${label}：expectedHttpStatus 只允许与 http_error 配置。`);
+  }
+
+  if (
+    item.faultScenario !== undefined &&
+    faultScenarios.has(item.faultScenario)
+  ) {
+    const required = {
+      requiresPubMed: true,
+      expectedToolCalls: 1,
+      expectedToolName: "searchPubMed",
+      expectedToolState: "output-available",
+      requireToolOutput: true,
+      manualReviewRequired: true,
+      currentStatus: "NOT_RUN",
+      requireCitationIdentifiersGrounded: true
+    };
+    for (const [field, expected] of Object.entries(required)) {
+      if (item[field] !== expected)
+        errors.push(
+          `${label}：faultScenario 要求 ${field}=${JSON.stringify(expected)}。`
+        );
+    }
+    if (item.expectedToolOutcome === undefined)
+      errors.push(`${label}：faultScenario 要求 expectedToolOutcome。`);
+    const [outcome, category, stage, status] =
+      scenarioContracts[item.faultScenario];
+    if (item.expectedToolOutcome !== outcome)
+      errors.push(
+        `${label}：${item.faultScenario} 的 expectedToolOutcome 必须为 ${outcome}。`
+      );
+    for (const [field, expected] of [
+      ["expectedToolFailureCategory", category],
+      ["expectedToolFailureStage", stage],
+      ["expectedHttpStatus", status]
+    ]) {
+      if (
+        expected === null ? item[field] !== undefined : item[field] !== expected
+      ) {
+        errors.push(
+          `${label}：${item.faultScenario} 的 ${field} ${expected === null ? "不允许配置" : `必须为 ${expected}`}。`
+        );
+      }
+    }
+    if (item.faultScenario === "success_exact_pmid") {
+      if (
+        typeof item.expectedExecutedQuery !== "string" ||
+        item.expectedExecutedQuery.trim() === ""
+      )
+        errors.push(
+          `${label}：success_exact_pmid 要求 expectedExecutedQuery。`
+        );
+      if (
+        !Array.isArray(item.expectedRecordPmids) ||
+        item.expectedRecordPmids.length === 0
+      )
+        errors.push(
+          `${label}：success_exact_pmid 要求非空 expectedRecordPmids。`
+        );
+    }
   }
 
   if (

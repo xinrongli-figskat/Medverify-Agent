@@ -92,10 +92,12 @@ if (args.dryRun) {
 }
 
 if (!args.caseId) fail("实际运行必须提供 --case <CASE_ID>。");
-if (!args.baseUrl) fail("实际运行必须提供 --base-url <URL>。");
-
 const reliabilityCase = cases.find((item) => item.id === args.caseId);
 if (!reliabilityCase) fail(`未找到 case：${args.caseId}`);
+if (reliabilityCase.faultScenario) {
+  fail("Fault scenario execution is not enabled until M2.10C.");
+}
+if (!args.baseUrl) fail("实际运行必须提供 --base-url <URL>。");
 
 let baseUrl;
 try {
@@ -877,6 +879,27 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
     ])
   ];
   const lowerAnswer = answerText.toLowerCase();
+  const expectedOutcomeAssertion = testCase.expectedToolOutcome
+    ? buildExpectedToolOutcomeAssertion(testCase, toolCalls)
+    : null;
+  const expectedFailure = ["tool_failure", "invalid_response"].includes(
+    testCase.expectedToolOutcome
+  );
+  const matchedExpectedFailure =
+    expectedFailure &&
+    expectedOutcomeAssertion?.passed === true &&
+    toolCalls.length === 1 &&
+    toolCalls[0]?.toolName === testCase.expectedToolName &&
+    toolCalls[0]?.state === testCase.expectedToolState &&
+    !isEmptyOutput(toolCalls[0]?.output) &&
+    errors.length === 0;
+  const unexpectedToolErrors = matchedExpectedFailure
+    ? toolErrors.filter(
+        (error) =>
+          error.toolName !== testCase.expectedToolName ||
+          error.type !== "tool_error"
+      )
+    : toolErrors;
   const assertions = [
     {
       assertion: "final_answer_non_empty",
@@ -930,7 +953,12 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
     {
       assertion: "tool_errors",
       hard: true,
-      passed: toolErrors.length === 0,
+      passed: expectedFailure
+        ? matchedExpectedFailure && unexpectedToolErrors.length === 0
+        : toolErrors.length === 0,
+      expectedFailure,
+      matchedExpectedFailure,
+      unexpectedToolErrors,
       actual: toolErrors
     },
     {
@@ -946,6 +974,13 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
     },
     buildPmidCitationGroundingAssertion(toolCalls, answerText)
   ];
+
+  if (expectedOutcomeAssertion) assertions.push(expectedOutcomeAssertion);
+  if (testCase.requireCitationIdentifiersGrounded) {
+    assertions.push(
+      buildCitationIdentifierGroundingAssertion(toolCalls, answerText)
+    );
+  }
 
   for (const group of testCase.requiredOutputGroups ?? []) {
     const actualMatch = group.anyOf.find((text) =>
@@ -1017,6 +1052,159 @@ function buildAssertions(testCase, toolCalls, finalAnswer, errors, toolErrors) {
   });
 
   return assertions;
+}
+
+function deriveToolOutcome(output) {
+  const structured = output?.outcome;
+  if (
+    structured &&
+    typeof structured === "object" &&
+    typeof structured.kind === "string"
+  ) {
+    return {
+      outcome: structured.kind,
+      category: structured.category ?? null,
+      stage: structured.stage ?? null,
+      httpStatus: structured.httpStatus ?? null,
+      structured: true
+    };
+  }
+  if (output?.success === true && Array.isArray(output.records)) {
+    return {
+      outcome:
+        output.records.length > 0 ? "successful_records" : "zero_results",
+      category: null,
+      stage: null,
+      httpStatus: null,
+      structured: false
+    };
+  }
+  if (output?.success === false) {
+    return {
+      outcome: "tool_failure",
+      category: null,
+      stage: null,
+      httpStatus: null,
+      structured: false
+    };
+  }
+  return {
+    outcome: null,
+    category: null,
+    stage: null,
+    httpStatus: null,
+    structured: false
+  };
+}
+
+function buildExpectedToolOutcomeAssertion(testCase, toolCalls) {
+  const actual =
+    toolCalls.length === 1
+      ? deriveToolOutcome(toolCalls[0]?.output)
+      : deriveToolOutcome(null);
+  const expectedCategory = testCase.expectedToolFailureCategory ?? null;
+  const expectedStage = testCase.expectedToolFailureStage ?? null;
+  const expectedStatus = testCase.expectedHttpStatus ?? null;
+  return {
+    assertion: "expected_tool_outcome",
+    hard: true,
+    expectedOutcome: testCase.expectedToolOutcome,
+    actualOutcome: actual.outcome,
+    expectedFailureCategory: expectedCategory,
+    actualFailureCategory: actual.category,
+    expectedFailureStage: expectedStage,
+    actualFailureStage: actual.stage,
+    expectedHttpStatus: expectedStatus,
+    actualHttpStatus: actual.httpStatus,
+    passed:
+      toolCalls.length === 1 &&
+      actual.outcome === testCase.expectedToolOutcome &&
+      actual.category === expectedCategory &&
+      actual.stage === expectedStage &&
+      actual.httpStatus === expectedStatus
+  };
+}
+
+function buildCitationIdentifierGroundingAssertion(toolCalls, finalAnswer) {
+  const citedPmids = stableUnique(
+    [
+      ...finalAnswer.matchAll(
+        /\bpmid\b[*_]*\s*:?\s*[*_]*\s*([1-9]\d{4,7})(?!\d)/gi
+      )
+    ].map((m) => m[1])
+  );
+  const citedPmcids = stableUnique(
+    [
+      ...finalAnswer.matchAll(
+        /(?:\bpmcid\b[*_]*\s*:?\s*[*_]*\s*)?\b(PMC\d+)\b/gi
+      )
+    ].map((m) => m[1].toUpperCase())
+  );
+  const citedDois = stableUnique(
+    [...finalAnswer.matchAll(/\b10\.\d{4,9}\/[-._;()/:A-Z0-9]+/gi)].map((m) =>
+      m[0].replace(/[.,;:!?]+$/g, "").toLowerCase()
+    )
+  );
+  const records = toolCalls
+    .filter(
+      (call) =>
+        call.toolName === "searchPubMed" &&
+        call.state === "output-available" &&
+        call.output?.success !== false &&
+        deriveToolOutcome(call.output).outcome === "successful_records"
+    )
+    .flatMap((call) =>
+      Array.isArray(call.output?.records) ? call.output.records : []
+    );
+  const availablePmids = stableUnique(
+    records
+      .map((r) => String(r?.pmid ?? ""))
+      .filter((v) => /^[1-9]\d{4,7}$/.test(v))
+  );
+  const availablePmcids = stableUnique(
+    records
+      .map((r) =>
+        typeof r?.pmcid === "string" ? r.pmcid.trim().toUpperCase() : ""
+      )
+      .filter((v) => /^PMC\d+$/.test(v))
+  );
+  const availableDois = stableUnique(
+    records
+      .map((r) =>
+        typeof r?.doi === "string"
+          ? r.doi
+              .trim()
+              .replace(/[.,;:!?]+$/g, "")
+              .toLowerCase()
+          : ""
+      )
+      .filter(Boolean)
+  );
+  const unsupportedPmids = citedPmids.filter(
+    (v) => !availablePmids.includes(v)
+  );
+  const unsupportedPmcids = citedPmcids.filter(
+    (v) => !availablePmcids.includes(v)
+  );
+  const unsupportedDois = citedDois.filter((v) => !availableDois.includes(v));
+  return {
+    assertion: "citation_identifier_grounding",
+    hard: true,
+    citedPmids,
+    citedPmcids,
+    citedDois,
+    availablePmids,
+    availablePmcids,
+    availableDois,
+    unsupportedPmids,
+    unsupportedPmcids,
+    unsupportedDois,
+    passed:
+      unsupportedPmids.length +
+        unsupportedPmcids.length +
+        unsupportedDois.length ===
+      0
+  };
 }
 
 function buildPmidCitationGroundingAssertion(toolCalls, finalAnswer) {
