@@ -36,7 +36,17 @@ Case 可以用以下通用字段增加机器断言：
 
 PubMed scenario contract 另有可选字段：`faultScenario`、`expectedToolOutcome`、`expectedToolFailureCategory`、`expectedToolFailureStage`、`expectedHttpStatus`、`requireCitationIdentifiersGrounded`。
 
-`faultScenario` 是闭集枚举：`http_429`、`http_500`、`network_error`、`timeout`、`esearch_malformed_json`、`esearch_invalid_schema`、`esummary_malformed_json`、`esummary_invalid_schema`、`zero_results`、`success_exact_pmid`。registry 值只作为数据比较，不作为代码、URL、正则或响应体执行。M2.10C 实现受控 fault seam 前，这些 case 只允许 dry-run 和离线评估；live case 会在网络或 Agent session 前拒绝且不生成 raw。
+`faultScenario` 是闭集枚举：`http_429`、`http_500`、`network_error`、`timeout`、`esearch_malformed_json`、`esearch_invalid_schema`、`esummary_malformed_json`、`esummary_invalid_schema`、`zero_results`、`success_exact_pmid`。registry 值只作为数据比较，不作为代码、URL、正则或响应体执行。M2.10C seam 只允许 loopback live base URL，并要求服务端 `MEDVERIFY_RELIABILITY_FAULTS_ENABLED === "true"` 与至少 32 字符的 `MEDVERIFY_RELIABILITY_FAULT_TOKEN` 同时配置。Runner 从同名进程环境变量读取 token，只用于认证，永不写入 raw、日志或 diagnostics；普通 case 不读取 token、不做 preflight，也不发送 fault 字段。
+
+当前 SDK 不向 `onChatMessage` 暴露 Request/headers；custom body 又会被 SDK 持久化，不能安全承载 token。因此 seam 使用认证的 `one_shot` setup endpoint：只在同一隔离 Agent 的 SQL state 写入 scenario、createdAt、consumed，token 不落库。TTL 为 2 分钟，首个 chat 以原子 `DELETE ... RETURNING` 消费，过期也立即删除并拒绝；不使用模块全局状态。Runner 在发送用户消息前用 `X-MedVerify-Reliability-Scenario` 与 `X-MedVerify-Reliability-Token` setup；只有 `enabled=true`、scenario 精确一致、`deterministic=true`、`oneShot=true` 与有效 `expiresAt` 才继续。认证失败统一 403；acknowledgement 不调用模型或 PubMed。
+
+未来 M2.10D 本地配置示例（placeholder 不是 secret）：
+
+```bash
+MEDVERIFY_RELIABILITY_FAULT_TOKEN='<at-least-32-character-test-token>' node scripts/run-reliability.mjs --case REL-016 --base-url http://127.0.0.1:8787
+```
+
+服务 binding 也必须显式配置 `MEDVERIFY_RELIABILITY_FAULTS_ENABLED` 与 `MEDVERIFY_RELIABILITY_FAULT_TOKEN`；production 默认缺失并保持关闭。M2.10C 只建立 transport seam，未增加 runtime response schema validation，未修 finalization gate，也未调整任何 prompt。
 
 `expected_tool_outcome` 优先读取 `output.outcome`。兼容旧 output 只允许从 `success:true + records` 推导成功/零结果，或从 `success:false` 推导无分类 failure。预期 failure 只有在唯一 Tool 调用、name/state/output/outcome 全匹配、无额外 Tool error 且 runner lifecycle 正常时才不触发 `tool_errors`；普通 case 语义不变。
 

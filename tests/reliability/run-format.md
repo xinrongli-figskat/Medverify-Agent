@@ -146,9 +146,13 @@ PMID 精确查询允许 `12345678`、`12345678[UID]`、`12345678[PMID]` 等价�
 
 ## 安全边界
 
-Runner 不读取或保存 `.env`、Token 或 API Key。实际运行会调用当前页面背后的真实 Agent，因此只能在明确允许模型和 PubMed 请求时执行。本里程碑只运行 dry-run。
+Runner 不读取或保存 `.env`、Token 或 API Key。fault live run 只从进程环境读取测试 token；普通 live run 不读取它。实际运行会调用当前页面背后的真实 Agent，因此只能在明确允许模型请求时执行。本里程碑不运行任何 live case。
 
-M2.10B 的 `faultScenario` 是闭集数据，绝不解释为代码、URL、正则或响应体。M2.10C 前 fault case 禁止 live execution，并在 URL 解析、网络、Agent session 和 raw 创建前明确拒绝。未来 raw 不得保存 fault response 全文或 secret。
+M2.10B 的 `faultScenario` 是闭集数据，绝不解释为代码、URL、正则或响应体。M2.10C fault live 只允许 `localhost`、`127.0.0.1`、`::1`，并在任何网络前要求闭集 scenario 和至少 32 字符的 `MEDVERIFY_RELIABILITY_FAULT_TOKEN`。服务端还必须同时启用 `MEDVERIFY_RELIABILITY_FAULTS_ENABLED === "true"` 并配置相同 token；缺失、错误或关闭统一拒绝。
+
+Runner 在用户消息前用两个认证 header 调用 setup endpoint 并取得 acknowledgement。当前模式为 `one_shot`：认证后只持久化 scenario、createdAt、consumed，token 不持久化；TTL 为 2 分钟，首个 chat 原子消费并立即清除，过期时清除并拒绝。认证失败统一 403。成功 fault raw 顶层增加 `faultScenario`、`faultInjectionAcknowledged: true`、`faultInjectionMode: "one_shot"`、`faultInjectionDeterministic: true`。不得记录 token、token hash、headers、binding、fixture body 或 secret。preflight 失败不创建 raw。普通 case 不读取 token、不做 preflight、不携带 fault 字段。
+
+M2.10C 没有修复 finalization 或 schema handling：Tool output 不新增结构化 `outcome`，原有 TypeScript assertions、缺失的 runtime schema validation、name-only finalization gate 与 prompts 均保留，以便 M2.10D 观察旧行为 baseline。
 
 ## Session isolation
 

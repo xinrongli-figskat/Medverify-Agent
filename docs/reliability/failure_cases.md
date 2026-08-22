@@ -89,6 +89,14 @@
 - 本轮只建立 registry、validator 和离线 assertions。production fault injection 尚未实现，live fault case 在 M2.10C 前由 Runner 前置拒绝；新 cases 尚未运行，未调用 Agent、模型或 PubMed，也不构成 Agent 修复。
 - FC-014 保持 `OPEN`，FC-026 保持 `PARTIAL_FIX`，FC-027 保持 `OPEN`。REG-015 为 `NOT_RUN`；FC-014 与 FC-026 必须按各自验收证据独立关闭。
 
+## M2.10C Deterministic PubMed Fault Seam
+
+- 新增默认关闭、双重门禁的确定性 transport seam：服务端必须同时配置 `MEDVERIFY_RELIABILITY_FAULTS_ENABLED === "true"` 与非空、至少 32 字符的 `MEDVERIFY_RELIABILITY_FAULT_TOKEN`；Runner 仅允许 loopback fault live URL，并在任何网络前检查闭集 scenario 与进程 token。
+- SDK 的 `onChatMessage` options 没有 Request/headers，且 custom body 会被持久化，不能承载 token；因此采用 authenticated `one_shot` setup endpoint。Worker 用两个专用 headers 鉴权，失败统一 403；只在同一隔离 Agent 保存 scenario、createdAt、consumed，TTL 2 分钟，首个 chat 原子消费并清除。token 不落库，不使用模块级 mutable scenario；preflight acknowledgement 不调用模型或 PubMed。
+- adapter 覆盖 REL-016 至 REL-025 的十个闭集 scenario，并按 ESearch/ESummary URL stage 返回本地 Response 或确定性 throw。fault mode 不调用 global fetch；normal mode 保留原 fetch URL、参数、Query Guard、exact-PMID、Tool output 与 finalization 行为。
+- 本轮没有运行 Agent、模型、PubMed 或 E2E。seam 存在不代表 Agent 已修复或回归通过：REL-016 至 REL-025 继续为 `NOT_RUN`，REG-015 继续为 `NOT_RUN`，FC-014 继续为 `OPEN`，FC-026 继续为 `PARTIAL_FIX`，FC-027 继续为 `OPEN`。
+- 特别地，本轮未增加 runtime response schema validation，未修 name-only finalization gate，未调整 Prompt，也未向 Tool output 添加 `outcome`。FC-014 与 FC-026 仍须在后续里程碑按独立验收证据关闭。
+
 ## 2. Failure 总表
 
 | Failure ID | 类型                                | 首次发现版本           | 来源 Run                         | 现象                                                               | 严重程度 | 当前状态        | 关联回归 Case                                  |

@@ -18,6 +18,20 @@ const defaultForbiddenOutputPatterns = [
 const PERSISTENCE_POLL_INTERVAL_MS = 200;
 const PERSISTENCE_OBSERVATION_WINDOW_MS = 5000;
 const MAX_POLL_SNAPSHOTS = 26;
+const RELIABILITY_FAULT_TOKEN_ENV = "MEDVERIFY_RELIABILITY_FAULT_TOKEN";
+const RELIABILITY_FAULT_TOKEN_MIN_LENGTH = 32;
+const PUBMED_FAULT_SCENARIOS = new Set([
+  "http_429",
+  "http_500",
+  "network_error",
+  "timeout",
+  "esearch_malformed_json",
+  "esearch_invalid_schema",
+  "esummary_malformed_json",
+  "esummary_invalid_schema",
+  "zero_results",
+  "success_exact_pmid"
+]);
 
 let cases;
 try {
@@ -94,9 +108,6 @@ if (args.dryRun) {
 if (!args.caseId) fail("实际运行必须提供 --case <CASE_ID>。");
 const reliabilityCase = cases.find((item) => item.id === args.caseId);
 if (!reliabilityCase) fail(`未找到 case：${args.caseId}`);
-if (reliabilityCase.faultScenario) {
-  fail("Fault scenario execution is not enabled until M2.10C.");
-}
 if (!args.baseUrl) fail("实际运行必须提供 --base-url <URL>。");
 
 let baseUrl;
@@ -109,6 +120,24 @@ if (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") {
   fail("--base-url 只支持 http 或 https。");
 }
 
+const faultScenario = reliabilityCase.faultScenario ?? null;
+let faultToken = null;
+if (faultScenario !== null) {
+  if (!PUBMED_FAULT_SCENARIOS.has(faultScenario)) {
+    fail(`未知 faultScenario：${faultScenario}`);
+  }
+  if (!isLoopbackHostname(baseUrl.hostname)) {
+    fail("Fault case 的 --base-url 必须使用 loopback hostname。");
+  }
+  faultToken = process.env[RELIABILITY_FAULT_TOKEN_ENV] ?? null;
+  if (
+    typeof faultToken !== "string" ||
+    faultToken.length < RELIABILITY_FAULT_TOKEN_MIN_LENGTH
+  ) {
+    fail(`${RELIABILITY_FAULT_TOKEN_ENV} 必须存在且至少 32 个字符。`);
+  }
+}
+
 const normalizedBaseUrl = baseUrl.href.replace(/\/$/, "");
 const startedAt = Date.now();
 const timestamp = new Date().toISOString();
@@ -116,6 +145,20 @@ const runId = `${timestamp.replace(/[:.]/g, "-")}_${reliabilityCase.id}`;
 const agentName =
   args.agentName ?? createIsolatedAgentName(reliabilityCase.id, timestamp);
 const sessionIsolated = args.agentName === null;
+
+if (faultScenario !== null) {
+  try {
+    await performFaultPreflight(
+      normalizedBaseUrl,
+      agentName,
+      faultScenario,
+      faultToken,
+      args.timeoutMs
+    );
+  } catch (error) {
+    fail(`Fault preflight 失败：${messageOf(error)}`);
+  }
+}
 
 const errors = [];
 let client;
@@ -230,6 +273,13 @@ const run = {
   assertionResults: evaluation.assertionResults
 };
 
+if (faultScenario !== null) {
+  run.faultScenario = faultScenario;
+  run.faultInjectionAcknowledged = true;
+  run.faultInjectionMode = "one_shot";
+  run.faultInjectionDeterministic = true;
+}
+
 await mkdir(runsUrl, { recursive: true });
 const outputUrl = new URL(`${runId}.json`, runsUrl);
 await writeFile(outputUrl, `${JSON.stringify(run, null, 2)}\n`, "utf8");
@@ -294,6 +344,48 @@ function requiredValue(argv, index, flag) {
   const value = argv[index];
   if (!value || value.startsWith("--")) fail(`${flag} 缺少值。`);
   return value;
+}
+
+function isLoopbackHostname(hostname) {
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
+  );
+}
+
+function assertFaultAcknowledgement(acknowledgement, scenario) {
+  if (
+    !acknowledgement ||
+    acknowledgement.enabled !== true ||
+    acknowledgement.scenario !== scenario ||
+    acknowledgement.deterministic !== true ||
+    acknowledgement.oneShot !== true ||
+    typeof acknowledgement.expiresAt !== "string"
+  ) {
+    throw new Error("Fault capability acknowledgement 不匹配。");
+  }
+}
+
+async function performFaultPreflight(
+  base,
+  agentName,
+  scenario,
+  token,
+  timeoutMs
+) {
+  const response = await fetch(
+    `${base}/agents/chat-agent/${encodeURIComponent(agentName)}/reliability-fault`,
+    {
+      method: "POST",
+      headers: {
+        "X-MedVerify-Reliability-Scenario": scenario,
+        "X-MedVerify-Reliability-Token": token
+      },
+      signal: AbortSignal.timeout(timeoutMs)
+    }
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const acknowledgement = await response.json();
+  assertFaultAcknowledgement(acknowledgement, scenario);
 }
 
 function waitForTurn(agent, requestId, messages, timeoutMs) {
@@ -678,6 +770,38 @@ function extractFinalAnswer(message) {
 async function runSelfTests() {
   const secretText = "fixture-visible-secret";
   const secretReasoning = "fixture-reasoning-secret";
+  assertSelfTest(
+    PUBMED_FAULT_SCENARIOS.size === 10,
+    "fault scenario closed set"
+  );
+  assertSelfTest(
+    PUBMED_FAULT_SCENARIOS.has("success_exact_pmid") &&
+      !PUBMED_FAULT_SCENARIOS.has("unknown"),
+    "known and unknown fault scenarios"
+  );
+  assertSelfTest(
+    isLoopbackHostname("localhost") &&
+      isLoopbackHostname("127.0.0.1") &&
+      isLoopbackHostname("[::1]") &&
+      !isLoopbackHostname("example.com"),
+    "fault base URL loopback restriction"
+  );
+  assertSelfTest(
+    (() => {
+      assertFaultAcknowledgement(
+        {
+          enabled: true,
+          scenario: "http_429",
+          deterministic: true,
+          oneShot: true,
+          expiresAt: new Date(Date.now() + 120000).toISOString()
+        },
+        "http_429"
+      );
+      return true;
+    })(),
+    "one-shot acknowledgement"
+  );
   const stepOnly = {
     id: "assistant-step",
     role: "assistant",

@@ -1,5 +1,5 @@
 import { createWorkersAI } from "workers-ai-provider";
-import { callable, routeAgentRequest } from "agents";
+import { callable, getAgentByName, routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import {
   convertToModelMessages,
@@ -9,6 +9,15 @@ import {
   tool
 } from "ai";
 import { z } from "zod";
+import {
+  authorizePubMedFault,
+  consumeOneShotPubMedFault,
+  createPubMedFaultFetch,
+  RELIABILITY_FAULT_TTL_MS,
+  type OneShotPubMedFault,
+  type PubMedFaultScenario,
+  type ReliabilityFaultEnvironment
+} from "./pubmed-fault-injection";
 
 const MEDVERIFY_SYSTEM_PROMPT = `
 You are MedVerify Agent V0.2, a medical question-answering and reliability assistant.
@@ -622,6 +631,12 @@ export class ChatAgent extends AIChatAgent<Env> {
   chatRecovery = true;
 
   onStart() {
+    this.sql`CREATE TABLE IF NOT EXISTS reliability_pubmed_fault (
+      slot INTEGER PRIMARY KEY CHECK (slot = 1),
+      scenario TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      consumed INTEGER NOT NULL CHECK (consumed IN (0, 1))
+    )`;
     this.mcp.configureOAuthCallback({
       customHandler: (result) => {
         if (result.authSuccess) {
@@ -652,6 +667,27 @@ export class ChatAgent extends AIChatAgent<Env> {
     await this.removeMcpServer(serverId);
   }
 
+  async setupReliabilityFault(scenario: PubMedFaultScenario) {
+    const now = Date.now();
+    this
+      .sql`DELETE FROM reliability_pubmed_fault WHERE created_at < ${now - RELIABILITY_FAULT_TTL_MS}`;
+    const active = this.sql<{ slot: number }>`
+      SELECT slot FROM reliability_pubmed_fault WHERE slot = 1
+    `;
+    if (active.length > 0) throw new Error("Forbidden");
+    this.sql`
+      INSERT INTO reliability_pubmed_fault (slot, scenario, created_at, consumed)
+      VALUES (1, ${scenario}, ${now}, 0)
+    `;
+    return {
+      enabled: true,
+      scenario,
+      deterministic: true,
+      oneShot: true,
+      expiresAt: new Date(now + RELIABILITY_FAULT_TTL_MS).toISOString()
+    };
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const workersai = createWorkersAI({
       binding: this.env.AI
@@ -659,7 +695,33 @@ export class ChatAgent extends AIChatAgent<Env> {
 
     const runtimeEnv = this.env as Env & {
       NCBI_EMAIL?: string;
-    };
+    } & ReliabilityFaultEnvironment;
+    const pendingFault = this.sql<{
+      scenario: string;
+      created_at: number;
+      consumed: number;
+    }>`
+      DELETE FROM reliability_pubmed_fault
+      WHERE slot = 1 AND consumed = 0
+      RETURNING scenario, created_at, consumed
+    `;
+    const consumedFault = consumeOneShotPubMedFault(
+      pendingFault.length === 1
+        ? ({
+            scenario: pendingFault[0].scenario,
+            createdAt: pendingFault[0].created_at,
+            consumed: pendingFault[0].consumed === 1
+          } as OneShotPubMedFault)
+        : null,
+      Date.now()
+    );
+    if (consumedFault.expired) {
+      return new Response("Forbidden", { status: 403 });
+    }
+    const faultScenario = consumedFault.scenario;
+    const pubMedFetch = faultScenario
+      ? createPubMedFaultFetch(faultScenario)
+      : fetch;
 
     const latestMessage = this.messages.at(-1);
 
@@ -808,7 +870,7 @@ export class ChatAgent extends AIChatAgent<Env> {
                 email
               });
 
-              const searchResponse = await fetch(
+              const searchResponse = await pubMedFetch(
                 `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?${searchParams.toString()}`
               );
 
@@ -862,7 +924,7 @@ export class ChatAgent extends AIChatAgent<Env> {
                 email
               });
 
-              const summaryResponse = await fetch(
+              const summaryResponse = await pubMedFetch(
                 `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?${summaryParams.toString()}`
               );
 
@@ -1053,6 +1115,33 @@ Reliability note
 
 export default {
   async fetch(request: Request, env: Env) {
+    const url = new URL(request.url);
+    const setupMatch = url.pathname.match(
+      /^\/agents\/chat-agent\/([^/]+)\/reliability-fault$/
+    );
+    if (setupMatch) {
+      if (request.method !== "POST") {
+        return new Response("Forbidden", { status: 403 });
+      }
+      const runtimeEnv = env as Env & ReliabilityFaultEnvironment;
+      const scenario = authorizePubMedFault(
+        runtimeEnv,
+        request.headers.get("X-MedVerify-Reliability-Scenario"),
+        request.headers.get("X-MedVerify-Reliability-Token")
+      );
+      if (!scenario) return new Response("Forbidden", { status: 403 });
+      try {
+        const agentName = decodeURIComponent(setupMatch[1]);
+        const agent = await getAgentByName<Env, ChatAgent>(
+          env.ChatAgent,
+          agentName
+        );
+        const acknowledgement = await agent.setupReliabilityFault(scenario);
+        return Response.json(acknowledgement);
+      } catch {
+        return new Response("Forbidden", { status: 403 });
+      }
+    }
     return (
       (await routeAgentRequest(request, env)) ||
       new Response("Not found", { status: 404 })
