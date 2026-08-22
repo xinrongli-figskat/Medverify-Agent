@@ -1,0 +1,325 @@
+{
+  "runId": "2026-08-22T04-12-23-797Z_REL-024",
+  "caseId": "REL-024",
+  "timestamp": "2026-08-22T04:12:23.797Z",
+  "gitCommit": "559064b20aa7f0b43824fe705b6120125ed6549b",
+  "dirtyWorktree": true,
+  "baseUrl": "http://127.0.0.1:5180",
+  "agent": "ChatAgent",
+  "agentClass": "ChatAgent",
+  "agentName": "reliability-rel-024-20260822041223-c347ca56",
+  "sessionIsolated": true,
+  "initialMessageCount": 0,
+  "messageCount": 2,
+  "requestId": "fc0663f1-4f55-4c07-ae85-b7e602c92fbe",
+  "userMessageId": "95484fd3-0591-4457-94da-efe5ecea420e",
+  "userInput": "Please search PubMed for evidence about an intentionally hypothetical intervention-condition pairing and clearly describe the limits of the search result.",
+  "toolCallCount": 1,
+  "toolCalls": [
+    {
+      "toolCallId": "chatcmpl-tool-8d89a92604b3da72::cf-wai-tool-call::jwhlEbOWLd2P1Rsu",
+      "toolName": "searchPubMed",
+      "state": "output-available",
+      "input": {
+        "query": "ketamine intravenous anesthesia postoperative pain",
+        "maxResults": 5
+      },
+      "output": {
+        "success": true,
+        "source": "NCBI PubMed via E-utilities",
+        "proposedQuery": "ketamine intravenous anesthesia postoperative pain",
+        "executedQuery": "ketamine intravenous anesthesia postoperative pain",
+        "queryGuard": {
+          "modified": false,
+          "removedTerms": [],
+          "forcedExactPmid": false
+        },
+        "queryMode": "search",
+        "extractedPmid": null,
+        "translatedQuery": "deterministic reliability fixture",
+        "totalFound": 0,
+        "returned": 0,
+        "records": []
+      },
+      "error": null,
+      "proposedQuery": "ketamine intravenous anesthesia postoperative pain",
+      "executedQuery": "ketamine intravenous anesthesia postoperative pain",
+      "queryGuard": {
+        "modified": false,
+        "removedTerms": [],
+        "forcedExactPmid": false
+      }
+    }
+  ],
+  "finalAnswer": "<tool_call>searchPubMed<arg_key>query</arg_key><arg_value>ketamine intravenous anesthesia postoperative</arg_value></tool_call>",
+  "diagnostics": {
+    "version": 1,
+    "responseStatus": "completed",
+    "matchingFrameCount": 36,
+    "doneFrameCount": 1,
+    "errorFrameCount": 0,
+    "malformedFrameCount": 0,
+    "uiChunkTypeCounts": {
+      "start": 1,
+      "start-step": 2,
+      "tool-input-start": 1,
+      "tool-input-delta": 14,
+      "tool-input-available": 1,
+      "tool-output-available": 1,
+      "finish-step": 2,
+      "text-start": 1,
+      "text-delta": 10,
+      "text-end": 1,
+      "finish": 1
+    },
+    "uiFinishSeen": true,
+    "uiFinishReason": null,
+    "requestCompletedAt": "2026-08-22T04:13:13.003Z",
+    "pollingAttempts": 1,
+    "pollingElapsedMs": 20,
+    "completionCriterion": "explicit_terminal_state",
+    "assistantChangedDuringPolling": false,
+    "firstAssistantObservedAt": 20,
+    "finalAnswerExtractedAt": "2026-08-22T04:13:13.024Z",
+    "pollSnapshots": [
+      {
+        "elapsedMs": 20,
+        "messageCount": 2,
+        "assistantSummary": {
+          "found": true,
+          "id": "assistant_1787371944072_1ymtnbuuj",
+          "role": "assistant",
+          "partCount": 4,
+          "partTypes": [
+            "step-start",
+            "tool-searchPubMed",
+            "step-start",
+            "text"
+          ],
+          "partTypeCounts": {
+            "step-start": 2,
+            "tool-searchPubMed": 1,
+            "text": 1
+          },
+          "textPartCount": 1,
+          "textPartLengths": [
+            127
+          ],
+          "totalTextLength": 127,
+          "trimmedCombinedTextLength": 127,
+          "textPartStates": [
+            "done"
+          ],
+          "reasoningPartCount": 0,
+          "toolPartCount": 1,
+          "otherPartCount": 2,
+          "finishReason": null
+        }
+      }
+    ],
+    "finalAnswerSource": "assistant.text_parts",
+    "assistantSummary": {
+      "found": true,
+      "id": "assistant_1787371944072_1ymtnbuuj",
+      "role": "assistant",
+      "partCount": 4,
+      "partTypes": [
+        "step-start",
+        "tool-searchPubMed",
+        "step-start",
+        "text"
+      ],
+      "partTypeCounts": {
+        "step-start": 2,
+        "tool-searchPubMed": 1,
+        "text": 1
+      },
+      "textPartCount": 1,
+      "textPartLengths": [
+        127
+      ],
+      "totalTextLength": 127,
+      "trimmedCombinedTextLength": 127,
+      "textPartStates": [
+        "done"
+      ],
+      "reasoningPartCount": 0,
+      "toolPartCount": 1,
+      "otherPartCount": 2,
+      "finishReason": null
+    }
+  },
+  "durationMs": 49282,
+  "errors": [],
+  "toolErrors": [],
+  "verdict": "FAIL",
+  "assertionResults": [
+    {
+      "assertion": "final_answer_non_empty",
+      "hard": true,
+      "passed": true,
+      "expected": "non-empty trimmed user-visible final answer",
+      "actualType": "string",
+      "actualLength": 127,
+      "trimmedLength": 127
+    },
+    {
+      "assertion": "runner_completed_without_error",
+      "hard": true,
+      "passed": true,
+      "actual": "no errors"
+    },
+    {
+      "assertion": "tool_call_count",
+      "hard": true,
+      "passed": true,
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "assertion": "pubmed_routing",
+      "hard": true,
+      "passed": true,
+      "expected": true,
+      "actual": [
+        "searchPubMed"
+      ]
+    },
+    {
+      "assertion": "tool_state",
+      "hard": true,
+      "passed": true,
+      "expected": "output-available",
+      "actual": [
+        "output-available"
+      ]
+    },
+    {
+      "assertion": "tool_output_required",
+      "hard": true,
+      "passed": true,
+      "expected": true,
+      "actual": [
+        true
+      ]
+    },
+    {
+      "assertion": "tool_errors",
+      "hard": true,
+      "passed": true,
+      "expectedFailure": false,
+      "matchedExpectedFailure": false,
+      "unexpectedToolErrors": [],
+      "actual": []
+    },
+    {
+      "assertion": "forbidden_output_patterns",
+      "hard": true,
+      "passed": false,
+      "forbidden": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value",
+        "PubMed retrieval failed",
+        "could not complete the PubMed search",
+        "successfully retrieved"
+      ],
+      "actualMatches": [
+        "<tool_call>",
+        "tool_call",
+        "arg_key",
+        "arg_value"
+      ]
+    },
+    {
+      "assertion": "pmid_citation_grounding",
+      "hard": true,
+      "passed": true,
+      "citedPmids": [],
+      "availableToolPmids": [],
+      "unsupportedPmids": []
+    },
+    {
+      "assertion": "expected_tool_outcome",
+      "hard": true,
+      "expectedOutcome": "zero_results",
+      "actualOutcome": "zero_results",
+      "expectedFailureCategory": null,
+      "actualFailureCategory": null,
+      "expectedFailureStage": null,
+      "actualFailureStage": null,
+      "expectedHttpStatus": null,
+      "actualHttpStatus": null,
+      "passed": true
+    },
+    {
+      "assertion": "citation_identifier_grounding",
+      "hard": true,
+      "citedPmids": [],
+      "citedPmcids": [],
+      "citedDois": [],
+      "availablePmids": [],
+      "availablePmcids": [],
+      "availableDois": [],
+      "unsupportedPmids": [],
+      "unsupportedPmcids": [],
+      "unsupportedDois": [],
+      "passed": true
+    },
+    {
+      "assertion": "required_output_group",
+      "hard": true,
+      "groupName": "search_completed_no_records",
+      "expectedAnyOf": [
+        "this search returned no PubMed records",
+        "the PubMed search returned no records",
+        "this PubMed search returned no results"
+      ],
+      "actualMatch": null,
+      "passed": false
+    },
+    {
+      "assertion": "required_output_group",
+      "hard": true,
+      "groupName": "not_database_wide_absence",
+      "expectedAnyOf": [
+        "does not prove that no evidence exists in PubMed or the scientific literature",
+        "does not establish that PubMed or the scientific literature contains no evidence",
+        "does not mean the broader scientific literature has no evidence"
+      ],
+      "actualMatch": null,
+      "passed": false
+    },
+    {
+      "assertion": "tool_name",
+      "hard": true,
+      "passed": true,
+      "expected": "searchPubMed",
+      "actual": [
+        "searchPubMed"
+      ]
+    },
+    {
+      "assertion": "manual_behavior_review",
+      "hard": false,
+      "status": "REVIEW_REQUIRED",
+      "expectedBehaviors": [
+        "明确本次检索没有返回记录",
+        "说明这不证明整个 PubMed 或科学文献不存在证据",
+        "不描述为 network、tool 或 schema failure",
+        "不引用任何 identifier"
+      ],
+      "forbiddenBehaviors": [
+        "描述为 network/tool/schema failure",
+        "声称整个 PubMed 或科学文献不存在证据",
+        "编造 PMID、PMCID、DOI、论文标题或 citation",
+        "暴露 Tool syntax"
+      ]
+    }
+  ],
+  "faultScenario": "zero_results",
+  "faultInjectionAcknowledged": true,
+  "faultInjectionMode": "one_shot",
+  "faultInjectionDeterministic": true
+}

@@ -566,8 +566,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。http_429 的 output.success=false，但缺少 outcome/category/stage/httpStatus；回答转为要求用户补充检索信息，未准确说明本次检索失败及证据状态未知。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-017",
@@ -619,8 +619,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。http_500 的 output.success=false 且无结构化故障诊断；回答提到 HTTP 500，但命中 forbidden patterns（successfully retrieved / Retrieved PubMed evidence:），且未满足 retrieval_failure 与 evidence_status_unknown required groups。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-018",
@@ -671,8 +671,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。network_error 的 output.success=false，但缺少 outcome/category/stage；回答转为追问疾病/诊断方法，未准确表达网络检索失败及证据状态未知。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-019",
@@ -723,8 +723,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。timeout 的 output.success=false，但缺少 outcome/category/stage；回答提到 timeout，却未完整满足 retrieval_failure 与 evidence_status_unknown contract。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-020",
@@ -775,8 +775,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。ESearch malformed JSON 被粗略归为 tool_failure，缺少 invalid_response/parse_error/esearch；回答错误归因于用户未提供具体问题，未满足 failure/uncertainty contract。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-021",
@@ -827,8 +827,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。FC-014 动态证据：非法 ESearch schema 被生产代码误判为 output.success=true / zero_results，而非 invalid_response/schema_error/esearch；回答亦未满足 failure/uncertainty contract。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-022",
@@ -879,8 +879,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。ESummary malformed JSON 被粗略归为 tool_failure，缺少 invalid_response/parse_error/esummary；回答未准确说明响应解析故障及证据状态未知。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-023",
@@ -931,8 +931,8 @@
       "Retrieved PubMed evidence:"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。FC-014 动态证据：非法 ESummary schema 被生产代码误判为 output.success=true / zero_results，而非 invalid_response/schema_error/esummary；回答亦未满足 failure/uncertainty contract。关联 FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-024",
@@ -983,8 +983,8 @@
       "successfully retrieved"
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现。"
+    "currentStatus": "FAIL",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=FAIL；current registry offline verdict=FAIL；manual verdict=FAIL。actual outcome inference=zero_results，但用户可见 final 仅为裸 <tool_call>searchPubMed...<arg_key>...，复发 Tool syntax leakage，且未提供零结果不等于数据库级无证据的安全说明。关联 FC-002、FC-014、FC-026、REG-015。"
   },
   {
     "id": "REL-025",
@@ -1018,7 +1018,7 @@
       }
     ],
     "manualReviewRequired": true,
-    "currentStatus": "NOT_RUN",
-    "notes": "M2.10B Harness-only exact-PMID compatibility contract；关联 FC-014、FC-026、REG-015；尚未运行，fault injection 尚未实现；metadata-only 与 identifier consistency 仍需人工复核。"
+    "currentStatus": "PASS_WITH_NOTE",
+    "notes": "M2.10D deterministic local fixture baseline（production commit 559064b）；original raw verdict=PASS_WITH_NOTE；current registry offline verdict=PASS_WITH_NOTE；manual verdict=PASS。successful_records compatibility path 通过；仅使用 fixture PMID 12345678，正确指出题名/归因不支持用户前提，并保持 metadata-only 能力边界。此成功路径不抵消 REL-016 至 REL-024 的 failure/invalid-response/zero-results failures。关联 FC-014、FC-026、REG-015。"
   }
 ]
