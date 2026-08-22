@@ -2,7 +2,7 @@
 
 `cases.json` 是 MedVerify Reliability Harness 的可复用测试用例登记表。一条记录只描述一个输入、预期 Tool 行为、允许行为和禁止行为，后续可以持续追加。
 
-当前 registry 共 25 条 case。REL-016 至 REL-025 是 M2.10B PubMed failure、invalid-response、zero-results 与 success compatibility Harness contract matrix；全部保持 `NOT_RUN`。
+当前 registry 共 25 条 case。REL-016 至 REL-025 是 M2.10B PubMed failure、invalid-response、zero-results 与 success compatibility Harness contract matrix。fault case 在执行前使用 `NOT_RUN`；真实运行后只允许更新为自动 `FAIL` 或 `PASS_WITH_NOTE`，人工判断继续与自动状态分开记录。
 
 ## currentStatus 怎么填
 

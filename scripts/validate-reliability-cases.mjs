@@ -258,7 +258,6 @@ for (const [index, item] of cases.entries()) {
       expectedToolState: "output-available",
       requireToolOutput: true,
       manualReviewRequired: true,
-      currentStatus: "NOT_RUN",
       requireCitationIdentifiersGrounded: true
     };
     for (const [field, expected] of Object.entries(required)) {
@@ -267,6 +266,11 @@ for (const [index, item] of cases.entries()) {
           `${label}：faultScenario 要求 ${field}=${JSON.stringify(expected)}。`
         );
     }
+    const allowedFaultStatuses = new Set(["NOT_RUN", "FAIL", "PASS_WITH_NOTE"]);
+    if (!allowedFaultStatuses.has(item.currentStatus))
+      errors.push(
+        `${label}：faultScenario 的 currentStatus 必须为 NOT_RUN、FAIL 或 PASS_WITH_NOTE。`
+      );
     if (item.expectedToolOutcome === undefined)
       errors.push(`${label}：faultScenario 要求 expectedToolOutcome。`);
     const [outcome, category, stage, status] =
